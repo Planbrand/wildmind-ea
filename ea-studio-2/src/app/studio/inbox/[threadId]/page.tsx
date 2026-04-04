@@ -42,6 +42,7 @@ export default async function ThreadPage({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
 
+      {/* ── Top bar ── */}
       <div style={{
         padding: '12px 24px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0,
@@ -65,6 +66,7 @@ export default async function ThreadPage({
         </div>
       </div>
 
+      {/* ── Email header ── */}
       <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px', lineHeight: 1.3 }}>
           {thread.subject}
@@ -73,7 +75,7 @@ export default async function ThreadPage({
           <div>
             <span style={{ color: 'var(--dim)' }}>From </span>
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>
-              {thread.from_name || thread.from_email}
+              {thread.from_name ? `${thread.from_name}` : thread.from_email}
             </span>
             {thread.from_name && (
               <span style={{ color: 'var(--dim)' }}> &lt;{thread.from_email}&gt;</span>
@@ -91,8 +93,11 @@ export default async function ThreadPage({
         </div>
       </div>
 
+      {/* ── Body ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
         <div style={{ maxWidth: 720 }}>
+
+          {/* Email body */}
           <div style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
             borderRadius: '12px', padding: '24px 28px',
@@ -101,10 +106,11 @@ export default async function ThreadPage({
               fontSize: '14px', color: 'var(--text)', lineHeight: 1.8,
               whiteSpace: 'pre-wrap', margin: 0,
             }}>
-              {thread.body || thread.snippet || '(No preview available)'}
+              {thread.body || thread.snippet || '(No preview available — run digest to fetch full email bodies)'}
             </p>
           </div>
 
+          {/* AI Draft */}
           {thread.has_draft && thread.draft_body && (
             <div style={{ marginTop: '24px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '10px' }}>
@@ -123,9 +129,11 @@ export default async function ThreadPage({
               </div>
             </div>
           )}
+
         </div>
       </div>
 
+      {/* ── Reply bar (display only — wired up later) ── */}
       <div style={{
         padding: '16px 32px', borderTop: '1px solid var(--border)',
         background: 'var(--surface)', flexShrink: 0,
@@ -145,6 +153,7 @@ export default async function ThreadPage({
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: 'var(--dim)' }}>
               Sending from: <strong style={{ color: 'var(--muted)' }}>{thread.inbox}</strong>
+              {' · '}Reply functionality coming soon — use <code style={{ fontSize: '11px' }}>wildmind_email.py approve</code> for now
             </span>
             <button disabled style={{
               padding: '8px 20px', borderRadius: '8px',
@@ -157,6 +166,7 @@ export default async function ThreadPage({
           </div>
         </div>
       </div>
+
     </div>
   )
 }
