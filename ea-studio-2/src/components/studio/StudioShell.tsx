@@ -1,268 +1,208 @@
-import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+'use client'
 import Link from 'next/link'
-import PanelHeader from '@/components/ui/PanelHeader'
-import EmptyState from '@/components/ui/EmptyState'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
-function pence(n: number) {
-  const p = Math.round(n / 100)
-  if (p >= 1000000) return '£' + (p / 1000000).toFixed(1) + 'm'
-  if (p >= 1000) return '£' + Math.round(p / 1000) + 'k'
-  return '£' + p.toLocaleString()
-}
+type Brand = { id: string; name: string; color: string; slug: string; mrr_pence: number; inbox_count: number }
 
-export default async function BrandPage({ params, searchParams }: {
-  params: Promise<{ slug: string }>
-  searchParams: Promise<{ tab?: string }>
+const NAV = [
+  { items: [
+    { key: 'dashboard',  label: 'Home',         icon: <HomeIcon /> },
+    { key: 'inbox',      label: 'Inbox',        icon: <InboxIcon /> },
+    { key: 'tasks',      label: 'Tasks',        icon: <TaskIcon /> },
+    { key: 'goals',      label: 'Goals',        icon: <GoalIcon /> },
+  ]},
+  { section: 'Business', items: [
+    { key: 'pipeline',   label: 'Pipeline',     icon: <PipelineIcon /> },
+    { key: 'finance',    label: 'Finance',      icon: <FinanceIcon /> },
+    { key: 'agents',     label: 'Agents',       icon: <AgentIcon /> },
+  ]},
+  { section: 'Life', items: [
+    { key: 'life',       label: 'Life',         icon: <LifeIcon /> },
+    { key: 'habits',     label: 'Habits',       icon: <HabitIcon /> },
+    { key: 'people',     label: 'People',       icon: <PeopleIcon /> },
+  ]},
+  { section: 'EA', items: [
+    { key: 'ea-agenda',  label: 'EA Agenda',    icon: <AgendaIcon /> },
+    { key: 'ea-dna',     label: 'DNA Fields',   icon: <DnaIcon /> },
+    { key: 'coach',      label: 'Ask EA',       icon: <CoachIcon /> },
+  ]},
+]
+
+export default function StudioShell({
+  children, userName, userEmail: _userEmail, brands
+}: {
+  children: React.ReactNode
+  userName: string
+  userEmail: string
+  brands: Brand[]
 }) {
-  const { slug } = await params
-  const { tab = 'overview' } = await searchParams
+  const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
+  const currentSection = pathname.split('/studio/')[1]?.split('/')[0] || 'dashboard'
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  async function signOut() {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
 
-  const { data: brand } = await supabase
-    .from('brands')
-    .select('*')
-    .eq('owner_id', user.id)
-    .eq('slug', slug)
-    .single()
-
-  if (!brand) return notFound()
-
-  const [
-    { data: dnaFields },
-    { data: agenda },
-    { data: contacts },
-    { data: goals },
-  ] = await Promise.all([
-    supabase.from('ea_dna').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('layer').order('sort_order'),
-    supabase.from('ea_agenda').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('priority').limit(20),
-    supabase.from('contacts').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('stage').limit(30),
-    supabase.from('goals').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).eq('status', 'active').limit(5),
-  ])
-
-  const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'dna', label: 'DNA Fields' },
-    { key: 'agenda', label: 'EA Agenda' },
-    { key: 'contacts', label: 'Contacts' },
-    { key: 'goals', label: 'Goals' },
-  ]
-
-  const card = (children: React.ReactNode) => (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
-      {children}
-    </div>
-  )
-
-  const label = (t: string) => (
-    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', marginBottom: '12px' }}>{t}</div>
-  )
-
-  const stageColor = (s: string) => ({ hot: '#DC2626', warm: '#B45309', cold: '#6B6B7A', client: '#059669' })[s] || '#6B6B7A'
+  const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', background: brand.color, flexShrink: 0 }} />
-          <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>{brand.name}</div>
-          {brand.description && <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{brand.description}</div>}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-            <div style={{ fontSize: '12px', color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 10px' }}>
-              MRR: <strong style={{ color: 'var(--text)' }}>{brand.mrr_pence ? pence(brand.mrr_pence) : '—'}</strong>
+    <div style={{ display:'flex', height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
+
+      {/* ── Sidebar ── */}
+      <aside style={{
+        width: 220, flexShrink: 0, background: 'var(--surface)',
+        borderRight: '1px solid var(--border)', display: 'flex',
+        flexDirection: 'column', overflow: 'hidden'
+      }}>
+
+        {/* Logo + user */}
+        <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', flexShrink:0, display:'flex', alignItems:'center', gap:'10px' }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '8px',
+            background: 'var(--text)', color: '#fff',
+            fontSize: '12px', fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, letterSpacing: '-.5px'
+          }}>{initials}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-.2px' }}>
+              Wild<span style={{ color: 'var(--accent)' }}>mind</span>
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 10px' }}>
-              Pipeline: <strong style={{ color: 'var(--text)' }}>{brand.pipeline_value_pence ? pence(brand.pipeline_value_pence) : '—'}</strong>
+            <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '1px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {userName}
             </div>
           </div>
         </div>
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px' }}>
-          {tabs.map(t => (
-            <Link key={t.key} href={`/studio/brands/${slug}?tab=${t.key}`} style={{
-              padding: '6px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? 'var(--text)' : 'var(--muted)',
-              background: tab === t.key ? 'var(--bg)' : 'transparent',
-              border: tab === t.key ? '1px solid var(--border)' : '1px solid transparent',
-            }}>{t.label}</Link>
-          ))}
-        </div>
-      </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        {/* Brand switcher */}
+        {brands.length > 0 && (
+          <div style={{ padding:'8px 10px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+            <div style={{ fontSize:'10px', fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--dim)', padding:'4px 8px 6px' }}>Brands</div>
+            {brands.map(b => {
+              const active = pathname === `/studio/brands/${b.slug}` || pathname.startsWith(`/studio/brands/${b.slug}?`)
+              return (
+                <Link key={b.id} href={`/studio/brands/${b.slug}`} style={{
+                  display:'flex', alignItems:'center', gap:'8px', padding:'6px 8px',
+                  borderRadius:'7px', cursor:'pointer', fontSize:'13px',
+                  color: active ? 'var(--text)' : 'var(--muted)',
+                  background: active ? 'var(--bg)' : 'transparent',
+                  fontWeight: active ? 600 : 400,
+                  textDecoration:'none',
+                }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:b.color, flexShrink:0 }} />
+                  <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.name}</span>
+                  {b.inbox_count > 0 && <span style={{ fontSize:'10px', color:'var(--muted)' }}>{b.inbox_count}</span>}
+                </Link>
+              )
+            })}
+            <Link href="/studio/brands/new" style={{
+              display:'flex', alignItems:'center', gap:'6px', padding:'6px 8px',
+              borderRadius:'7px', fontSize:'12px', color:'var(--dim)',
+              marginTop:'2px'
+            }}>
+              <span style={{ fontSize:'16px', lineHeight:1 }}>+</span> Add brand
+            </Link>
+          </div>
+        )}
 
-        {/* ── OVERVIEW ── */}
-        {tab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {card(<>
-              {label('About this brand')}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[
-                  ['Slug', brand.slug],
-                  ['Main inbox', brand.main_inbox || '—'],
-                  ['Website', brand.website || '—'],
-                  ['Daily capacity', brand.daily_capacity + ' emails'],
-                  ['Inbox count', brand.inbox_count + ' inboxes'],
-                ].map(([k, v]) => (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--muted)' }}>{k}</span>
-                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </>)}
-            {card(<>
-              {label('Active goals')}
-              {goals && goals.length > 0 ? goals.map(g => (
-                <div key={g.id} style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}>
-                    <span style={{ fontWeight: 600 }}>{g.title}</span>
-                    <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{g.progress_pct}%</span>
-                  </div>
-                  <div style={{ height: '4px', background: 'var(--border-mid)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${g.progress_pct}%`, background: 'var(--accent)', borderRadius: '2px' }} />
-                  </div>
+        {/* Nav */}
+        <nav style={{ flex:1, overflowY:'auto', padding:'8px 10px' }}>
+          {NAV.map((group, gi) => (
+            <div key={gi} style={{ marginBottom: group.section ? '4px' : '8px' }}>
+              {group.section && (
+                <div style={{ fontSize:'11px', fontWeight:600, color:'var(--dim)', padding:'8px 8px 4px', letterSpacing:'.04em' }}>
+                  {group.section}
                 </div>
-              )) : <EmptyState label="No active goals" hint="Goals linked to this brand appear here" />}
-            </>)}
-            {card(<>
-              {label('Top contacts')}
-              {contacts && contacts.slice(0, 5).length > 0 ? contacts.slice(0, 5).map(c => {
-                const initials = c.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+              )}
+              {group.items.map(item => {
+                const active = currentSection === item.key
                 return (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: stageColor(c.stage), color: '#fff', fontSize: '10px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{initials}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600 }}>{c.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{c.company || c.role || '—'}</div>
-                    </div>
-                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: `${stageColor(c.stage)}15`, color: stageColor(c.stage), fontWeight: 600 }}>{c.stage}</span>
-                  </div>
+                  <Link key={item.key} href={`/studio/${item.key}`} style={{
+                    display:'flex', alignItems:'center', gap:'9px',
+                    padding:'7px 10px', borderRadius:'8px',
+                    fontSize:'13px', fontWeight: active ? 600 : 400,
+                    color: active ? 'var(--text)' : 'var(--muted)',
+                    background: active ? 'var(--bg)' : 'transparent',
+                    textDecoration:'none', marginBottom:'1px',
+                  }}>
+                    <span style={{ width:16, height:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, opacity: active ? 1 : 0.6 }}>
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </Link>
                 )
-              }) : <EmptyState label="No contacts" hint="Contacts linked to this brand appear here" />}
-            </>)}
-            {card(<>
-              {label('EA Agenda — pinned')}
-              {agenda && agenda.filter(a => a.is_pinned).slice(0, 4).length > 0
-                ? agenda.filter(a => a.is_pinned).slice(0, 4).map(a => (
-                  <div key={a.id} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '12px' }}>
-                    <div style={{ fontWeight: 600 }}>{a.title}</div>
-                    {a.body && <div style={{ color: 'var(--muted)', fontSize: '11px', marginTop: '2px' }}>{a.body.slice(0, 100)}</div>}
-                  </div>
-                ))
-                : <EmptyState label="No pinned notes" hint="EA will add observations for this brand here" />}
-            </>)}
-          </div>
-        )}
+              })}
+            </div>
+          ))}
+        </nav>
 
-        {/* ── DNA FIELDS ── */}
-        {tab === 'dna' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: 700 }}>
-            {dnaFields && dnaFields.length > 0 ? dnaFields.map(f => (
-              <div key={f.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 7px' }}>{f.field_id}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{f.label}</span>
-                  {f.locked && <span style={{ fontSize: '10px', color: 'var(--dim)', marginLeft: 'auto' }}>🔒 locked</span>}
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.7 }}>{f.body || <span style={{ color: 'var(--dim)', fontStyle: 'italic' }}>Not filled in yet</span>}</div>
-              </div>
-            )) : (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>No DNA fields for {brand.name} yet</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '16px' }}>Brand DNA fields let EA understand this business deeply — its positioning, voice, goals, and constraints.</div>
-                <div style={{ fontSize: '12px', color: 'var(--dim)' }}>Tell EA to build DNA fields for {brand.name} in the Ask EA chat.</div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Sign out */}
+        <div style={{ padding:'10px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
+          <button onClick={signOut} style={{
+            width:'100%', display:'flex', alignItems:'center', gap:'8px',
+            padding:'7px 10px', borderRadius:'8px', cursor:'pointer',
+            background:'transparent', border:'none', fontSize:'13px',
+            color:'var(--muted)', textAlign:'left',
+          }}>
+            <SignOutIcon />
+            Sign out
+          </button>
+        </div>
+      </aside>
 
-        {/* ── AGENDA ── */}
-        {tab === 'agenda' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: 700 }}>
-            {agenda && agenda.length > 0 ? agenda.map(a => (
-              <div key={a.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  {a.is_pinned && <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>📌</span>}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{a.title}</div>
-                    {a.body && <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>{a.body}</div>}
-                    <div style={{ fontSize: '10px', color: 'var(--dim)', marginTop: '8px', textTransform: 'uppercase', letterSpacing: '.04em' }}>{a.entry_type} · {a.life_area || 'general'}</div>
-                  </div>
-                </div>
-              </div>
-            )) : (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>No EA agenda entries for {brand.name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>EA will add observations, notes, and insights for this brand as you use it.</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── CONTACTS ── */}
-        {tab === 'contacts' && (
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-            {contacts && contacts.length > 0 ? (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                    {['Name', 'Company', 'Stage', 'Email', 'Next action'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 600, color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '.06em', textAlign: 'left' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {contacts.map(c => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{c.name}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '12px', color: 'var(--muted)' }}>{c.company || '—'}</td>
-                      <td style={{ padding: '10px 16px' }}>
-                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', background: `${stageColor(c.stage)}15`, color: stageColor(c.stage), fontWeight: 600 }}>{c.stage}</span>
-                      </td>
-                      <td style={{ padding: '10px 16px', fontSize: '12px', color: 'var(--muted)' }}>{c.email || '—'}</td>
-                      <td style={{ padding: '10px 16px', fontSize: '12px', color: 'var(--muted)' }}>{c.next_action || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div style={{ padding: '40px', textAlign: 'center' }}>
-                <EmptyState label={`No contacts for ${brand.name}`} hint="Contacts linked to this brand will appear here" />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── GOALS ── */}
-        {tab === 'goals' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: 700 }}>
-            {goals && goals.length > 0 ? goals.map(g => (
-              <div key={g.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>{g.title}</div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>{g.progress_pct}%</span>
-                </div>
-                <div style={{ height: '6px', background: 'var(--border-mid)', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px' }}>
-                  <div style={{ height: '100%', width: `${g.progress_pct}%`, background: 'var(--accent)', borderRadius: '3px' }} />
-                </div>
-                {g.description && <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>{g.description}</div>}
-                {g.target_date && <div style={{ fontSize: '11px', color: 'var(--dim)' }}>Target: {g.target_date}</div>}
-              </div>
-            )) : (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-                <EmptyState label={`No active goals for ${brand.name}`} hint="Goals linked to this brand will appear here" />
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
+      {/* ── Main ── */}
+      <main style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+        {children}
+      </main>
     </div>
   )
+}
+
+/* ── Icons ── */
+function HomeIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+}
+function InboxIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+}
+function TaskIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+}
+function GoalIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><line x1="12" y1="3" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="21" /></svg>
+}
+function PipelineIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+}
+function FinanceIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+}
+function AgentIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+}
+function LifeIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+}
+function HabitIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+}
+function PeopleIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+}
+function AgendaIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+}
+function DnaIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+}
+function CoachIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+}
+function SignOutIcon() {
+  return <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
 }
