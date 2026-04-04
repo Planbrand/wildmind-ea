@@ -49,6 +49,7 @@ export default async function InboxPage({
     .select('id, name, color, slug')
     .order('sort_order')
 
+  // Build thread query
   let query = supabase
     .from('email_threads')
     .select('*, brands(name, color, slug)')
@@ -65,6 +66,7 @@ export default async function InboxPage({
 
   const { data: threads } = await query
 
+  // Unread counts per brand
   const { data: unreadRows } = await supabase
     .from('email_threads')
     .select('brand_id')
@@ -82,6 +84,7 @@ export default async function InboxPage({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
 
+      {/* ── Brand tabs ── */}
       <div style={{
         borderBottom: '1px solid var(--border)',
         display: 'flex', overflowX: 'auto', flexShrink: 0,
@@ -100,6 +103,7 @@ export default async function InboxPage({
         ))}
       </div>
 
+      {/* ── Category pills ── */}
       <div style={{
         padding: '10px 20px', borderBottom: '1px solid var(--border)',
         display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0,
@@ -128,6 +132,7 @@ export default async function InboxPage({
         </span>
       </div>
 
+      {/* ── Thread list ── */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {count === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: 'var(--dim)', fontSize: '13px' }}>
@@ -152,10 +157,13 @@ export default async function InboxPage({
                 background: t.is_read ? 'transparent' : '#f8f9ff',
                 textDecoration: 'none',
               }}>
+                {/* Unread dot */}
                 <div style={{
                   width: 7, height: 7, borderRadius: '50%', flexShrink: 0, marginTop: 7,
                   background: t.is_read ? 'transparent' : 'var(--accent)',
                 }} />
+
+                {/* Main content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
                     <span style={{
@@ -165,6 +173,7 @@ export default async function InboxPage({
                     }}>
                       {t.from_name || t.from_email}
                     </span>
+                    {/* Category badge */}
                     <span style={{
                       fontSize: '10px', fontWeight: 600, padding: '2px 7px',
                       borderRadius: '20px', flexShrink: 0,
@@ -172,6 +181,7 @@ export default async function InboxPage({
                     }}>
                       {CAT_LABELS[cat] || 'Other'}
                     </span>
+                    {/* Brand badge */}
                     {brand && (
                       <span style={{
                         fontSize: '10px', fontWeight: 600, padding: '2px 7px',
@@ -207,6 +217,8 @@ export default async function InboxPage({
                     </div>
                   )}
                 </div>
+
+                {/* Date + inbox */}
                 <div style={{ flexShrink: 0, textAlign: 'right', paddingTop: '2px' }}>
                   <div style={{ fontSize: '11px', color: 'var(--dim)' }}>{dateStr}</div>
                   <div style={{
