@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PanelHeader from '@/components/ui/PanelHeader'
 import EmptyState from '@/components/ui/EmptyState'
+import { DnaEditor } from './DnaEditor'
 
 function pence(n: number) {
   const p = Math.round(n / 100)
@@ -162,24 +163,12 @@ export default async function BrandPage({ params, searchParams }: {
 
         {/* ── DNA FIELDS ── */}
         {tab === 'dna' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: 700 }}>
-            {dnaFields && dnaFields.length > 0 ? dnaFields.map(f => (
-              <div key={f.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 7px' }}>{f.field_id}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{f.label}</span>
-                  {f.locked && <span style={{ fontSize: '10px', color: 'var(--dim)', marginLeft: 'auto' }}>🔒 locked</span>}
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.7 }}>{f.body || <span style={{ color: 'var(--dim)', fontStyle: 'italic' }}>Not filled in yet</span>}</div>
-              </div>
-            )) : (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>No DNA fields for {brand.name} yet</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '16px' }}>Brand DNA fields let EA understand this business deeply — its positioning, voice, goals, and constraints.</div>
-                <div style={{ fontSize: '12px', color: 'var(--dim)' }}>Tell EA to build DNA fields for {brand.name} in the Ask EA chat.</div>
-              </div>
-            )}
-          </div>
+          <DnaEditor
+            fields={dnaFields || []}
+            brandId={brand.id}
+            ownerId={user.id}
+            slug={slug}
+          />
         )}
 
         {/* ── AGENDA ── */}
