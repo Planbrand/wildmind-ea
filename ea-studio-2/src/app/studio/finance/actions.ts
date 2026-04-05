@@ -53,12 +53,10 @@ export async function syncBankTransactions() {
 
   const token = await refreshTokenIfNeeded(conn)
 
-  // Fetch 90 days of transactions
   const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const to = new Date().toISOString().split('T')[0]
 
-  const accountId = conn.account_id
-  const url = `${TL_API}/data/v1/accounts/${accountId}/transactions?from=${from}&to=${to}`
+  const url = `${TL_API}/data/v1/accounts/${conn.account_id}/transactions?from=${from}&to=${to}`
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -71,19 +69,13 @@ export async function syncBankTransactions() {
 
   const { results } = await res.json() as {
     results: Array<{
-      transaction_id: string
-      timestamp: string
-      description: string
-      transaction_type: string
-      amount: number
-      currency: string
-      merchant_name?: string
+      transaction_id: string; timestamp: string; description: string
+      transaction_type: string; amount: number; currency: string; merchant_name?: string
     }>
   }
 
   if (!results?.length) return 0
 
-  // Get existing transaction IDs to deduplicate
   const { data: existing } = await supabase
     .from('finance_transactions')
     .select('external_id')
@@ -112,6 +104,39 @@ export async function syncBankTransactions() {
     .update({ last_synced: new Date().toISOString() })
     .eq('id', conn.id)
 
-  revalidatePath('/studio/finances')
+  revalidatePath('/studio/finance')
   return toInsert.length
+}
+
+export async function addExpense(data: {
+  amount: number
+  merchant: string
+  frequency: string
+  description: string
+  date: string
+  brand_ids: string[]
+  contact_id?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  await supabase.from('expenses').insert({
+    owner_id: user.id,
+    amount_pence: Math.round(data.amount * 100),
+    merchant: data.merchant,
+    frequency: data.frequency,
+    description: data.description,
+    date: data.date,
+    brand_ids: data.brand_ids,
+    contact_id: data.contact_id || null,
+  })
+
+  revalidatePath('/studio/finance')
+}
+
+export async function deleteExpense(id: string) {
+  const supabase = await createClient()
+  await supabase.from('expenses').delete().eq('id', id)
+  revalidatePath('/studio/finance')
 }
