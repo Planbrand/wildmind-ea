@@ -13,18 +13,23 @@ export default async function StudioLayout({ children }: { children: React.React
     .eq('user_id', user.id)
     .single()
 
-  const { data: brands } = await supabase
-    .from('brands')
-    .select('id, name, color, slug, mrr_pence, inbox_count')
-    .eq('owner_id', user.id)
-    .eq('is_active', true)
-    .order('sort_order')
+  const [
+    { data: brands },
+    { data: sections },
+    { data: views },
+  ] = await Promise.all([
+    supabase.from('brands').select('id, name, color, slug, inbox_count').eq('owner_id', user.id).eq('is_active', true).order('sort_order'),
+    supabase.from('sections').select('id, name, icon, sort_order').eq('owner_id', user.id).order('sort_order'),
+    supabase.from('workspace_views').select('id, section_id, name, slug, color, icon, is_studio, sort_order').eq('owner_id', user.id).order('sort_order'),
+  ])
 
   return (
     <StudioShell
       userName={profile?.display_name || user.email?.split('@')[0] || 'You'}
       userEmail={user.email || ''}
       brands={brands || []}
+      sections={sections || []}
+      views={views || []}
     >
       {children}
     </StudioShell>

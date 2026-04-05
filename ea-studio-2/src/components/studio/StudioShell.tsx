@@ -1,46 +1,52 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Brand = { id: string; name: string; color: string; slug: string; mrr_pence: number; inbox_count: number }
+type Brand = { id: string; name: string; color: string; slug: string; inbox_count: number }
+type Section = { id: string; name: string; icon: string; sort_order: number }
+type View = { id: string; section_id: string | null; name: string; slug: string; color: string; icon: string; is_studio: boolean; sort_order: number }
 
 const NAV = [
   { items: [
-    { key: 'dashboard',  label: 'Home',         icon: <HomeIcon /> },
-    { key: 'inbox',      label: 'Inbox',        icon: <InboxIcon /> },
-    { key: 'tasks',      label: 'Tasks',        icon: <TaskIcon /> },
-    { key: 'goals',      label: 'Goals',        icon: <GoalIcon /> },
+    { key: 'dashboard',  label: 'Home',      icon: <HomeIcon /> },
+    { key: 'inbox',      label: 'Inbox',     icon: <InboxIcon /> },
+    { key: 'tasks',      label: 'Tasks',     icon: <TaskIcon /> },
+    { key: 'goals',      label: 'Goals',     icon: <GoalIcon /> },
   ]},
   { section: 'Business', items: [
-    { key: 'pipeline',   label: 'Pipeline',     icon: <PipelineIcon /> },
-    { key: 'finance',    label: 'Finance',      icon: <FinanceIcon /> },
-    { key: 'agents',     label: 'Agents',       icon: <AgentIcon /> },
+    { key: 'pipeline',   label: 'Pipeline',  icon: <PipelineIcon /> },
+    { key: 'finance',    label: 'Finance',   icon: <FinanceIcon /> },
+    { key: 'agents',     label: 'Agents',    icon: <AgentIcon /> },
   ]},
   { section: 'Life', items: [
-    { key: 'life',       label: 'Life',         icon: <LifeIcon /> },
-    { key: 'habits',     label: 'Habits',       icon: <HabitIcon /> },
-    { key: 'people',     label: 'People',       icon: <PeopleIcon /> },
+    { key: 'life',       label: 'Life',      icon: <LifeIcon /> },
+    { key: 'habits',     label: 'Habits',    icon: <HabitIcon /> },
+    { key: 'people',     label: 'People',    icon: <PeopleIcon /> },
   ]},
   { section: 'EA', items: [
-    { key: 'ea-agenda',  label: 'EA Agenda',    icon: <AgendaIcon /> },
-    { key: 'ea-dna',     label: 'DNA Fields',   icon: <DnaIcon /> },
-    { key: 'coach',      label: 'Ask EA',       icon: <CoachIcon /> },
+    { key: 'ea-agenda',  label: 'EA Agenda', icon: <AgendaIcon /> },
+    { key: 'ea-dna',     label: 'DNA Fields',icon: <DnaIcon /> },
+    { key: 'coach',      label: 'Ask EA',    icon: <CoachIcon /> },
   ]},
 ]
 
 export default function StudioShell({
-  children, userName, userEmail: _userEmail, brands
+  children, userName, userEmail: _userEmail, brands, sections, views,
 }: {
   children: React.ReactNode
   userName: string
   userEmail: string
   brands: Brand[]
+  sections: Section[]
+  views: View[]
 }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const currentSection = pathname.split('/studio/')[1]?.split('/')[0] || 'dashboard'
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -48,106 +54,196 @@ export default function StudioShell({
     router.refresh()
   }
 
-  const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+  const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+
+  // Use sections+views if they exist, otherwise fall back to brands
+  const useSectionsSystem = sections.length > 0
 
   return (
-    <div style={{ display:'flex', height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
 
       {/* ── Sidebar ── */}
       <aside style={{
-        width: 220, flexShrink: 0, background: 'var(--surface)',
+        width: 228, flexShrink: 0, background: 'var(--surface)',
         borderRight: '1px solid var(--border)', display: 'flex',
-        flexDirection: 'column', overflow: 'hidden'
+        flexDirection: 'column', overflow: 'hidden',
       }}>
 
         {/* Logo + user */}
-        <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', flexShrink:0, display:'flex', alignItems:'center', gap:'10px' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             width: 32, height: 32, borderRadius: '8px',
             background: 'var(--text)', color: '#fff',
             fontSize: '12px', fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, letterSpacing: '-.5px'
+            flexShrink: 0, letterSpacing: '-.5px',
           }}>{initials}</div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-.2px' }}>
               Wild<span style={{ color: 'var(--accent)' }}>mind</span>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '1px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {userName}
             </div>
           </div>
         </div>
 
-        {/* Brand switcher */}
-        {brands.length > 0 && (
-          <div style={{ padding:'8px 10px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
-            <div style={{ fontSize:'10px', fontWeight:600, letterSpacing:'.08em', textTransform:'uppercase', color:'var(--dim)', padding:'4px 8px 6px' }}>Brands</div>
-            {brands.map(b => {
-              const active = pathname === `/studio/brands/${b.slug}` || pathname.startsWith(`/studio/brands/${b.slug}?`)
-              return (
-                <Link key={b.id} href={`/studio/brands/${b.slug}`} style={{
-                  display:'flex', alignItems:'center', gap:'8px', padding:'6px 8px',
-                  borderRadius:'7px', cursor:'pointer', fontSize:'13px',
-                  color: active ? 'var(--text)' : 'var(--muted)',
-                  background: active ? 'var(--bg)' : 'transparent',
-                  fontWeight: active ? 600 : 400,
-                  textDecoration:'none',
-                }}>
-                  <div style={{ width:8, height:8, borderRadius:'50%', background:b.color, flexShrink:0 }} />
-                  <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.name}</span>
-                  {b.inbox_count > 0 && <span style={{ fontSize:'10px', color:'var(--muted)' }}>{b.inbox_count}</span>}
-                </Link>
-              )
-            })}
-            <Link href="/studio/brands/new" style={{
-              display:'flex', alignItems:'center', gap:'6px', padding:'6px 8px',
-              borderRadius:'7px', fontSize:'12px', color:'var(--dim)',
-              marginTop:'2px'
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+
+          {/* Studio link */}
+          <div style={{ padding: '8px 10px 0' }}>
+            <Link href="/studio/dashboard" style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '7px 10px', borderRadius: '8px',
+              fontSize: '13px', fontWeight: currentSection === 'dashboard' ? 600 : 400,
+              color: currentSection === 'dashboard' ? 'var(--text)' : 'var(--muted)',
+              background: currentSection === 'dashboard' ? 'var(--bg)' : 'transparent',
+              textDecoration: 'none', marginBottom: '2px',
             }}>
-              <span style={{ fontSize:'16px', lineHeight:1 }}>+</span> Add brand
+              <span style={{ width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentSection === 'dashboard' ? 1 : 0.6 }}>
+                <HomeIcon />
+              </span>
+              Studio
             </Link>
           </div>
-        )}
 
-        {/* Nav */}
-        <nav style={{ flex:1, overflowY:'auto', padding:'8px 10px' }}>
-          {NAV.map((group, gi) => (
-            <div key={gi} style={{ marginBottom: group.section ? '4px' : '8px' }}>
-              {group.section && (
-                <div style={{ fontSize:'11px', fontWeight:600, color:'var(--dim)', padding:'8px 8px 4px', letterSpacing:'.04em' }}>
-                  {group.section}
-                </div>
-              )}
-              {group.items.map(item => {
-                const active = currentSection === item.key
+          {/* Sections + Views */}
+          {useSectionsSystem ? (
+            <div style={{ padding: '4px 10px' }}>
+              {sections.map(sec => {
+                const secViews = views.filter(v => v.section_id === sec.id)
+                const isCollapsed = collapsed[sec.id]
                 return (
-                  <Link key={item.key} href={`/studio/${item.key}`} style={{
-                    display:'flex', alignItems:'center', gap:'9px',
-                    padding:'7px 10px', borderRadius:'8px',
-                    fontSize:'13px', fontWeight: active ? 600 : 400,
-                    color: active ? 'var(--text)' : 'var(--muted)',
-                    background: active ? 'var(--bg)' : 'transparent',
-                    textDecoration:'none', marginBottom:'1px',
-                  }}>
-                    <span style={{ width:16, height:16, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, opacity: active ? 1 : 0.6 }}>
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </Link>
+                  <div key={sec.id} style={{ marginBottom: '4px' }}>
+                    <button
+                      onClick={() => setCollapsed(c => ({ ...c, [sec.id]: !c[sec.id] }))}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '5px 8px', borderRadius: '6px', border: 'none',
+                        background: 'transparent', cursor: 'pointer',
+                        fontSize: '11px', fontWeight: 600, color: 'var(--dim)',
+                        textTransform: 'uppercase', letterSpacing: '.06em', textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ fontSize: '9px', opacity: 0.5 }}>{isCollapsed ? '▶' : '▼'}</span>
+                      <span style={{ fontSize: '13px' }}>{sec.icon}</span>
+                      {sec.name}
+                    </button>
+                    {!isCollapsed && (
+                      <>
+                        {secViews.map(v => {
+                          const active = pathname.includes(`/views/${v.slug}`) || pathname.includes(`/brands/${v.slug}`)
+                          return (
+                            <Link key={v.id} href={`/studio/brands/${v.slug}`} style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '6px 8px 6px 24px', borderRadius: '7px',
+                              fontSize: '13px', fontWeight: active ? 600 : 400,
+                              color: active ? 'var(--text)' : 'var(--muted)',
+                              background: active ? 'var(--bg)' : 'transparent',
+                              textDecoration: 'none', marginBottom: '1px',
+                            }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: v.color, flexShrink: 0 }} />
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
+                            </Link>
+                          )
+                        })}
+                        <Link href={`/studio/sections/${sec.id}/new-view`} style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '5px 8px 5px 24px', borderRadius: '7px',
+                          fontSize: '12px', color: 'var(--dim)', textDecoration: 'none',
+                        }}>
+                          <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> Add view
+                        </Link>
+                      </>
+                    )}
+                  </div>
                 )
               })}
+              <button style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '5px 8px', borderRadius: '6px', border: 'none',
+                background: 'transparent', cursor: 'pointer',
+                fontSize: '11px', color: 'var(--dim)', marginTop: '4px',
+              }}>
+                <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> Add section
+              </button>
             </div>
-          ))}
-        </nav>
+          ) : (
+            /* Fallback: brands list */
+            brands.length > 0 && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', padding: '4px 8px 6px' }}>Brands</div>
+                {brands.map(b => {
+                  const active = pathname.startsWith(`/studio/brands/${b.slug}`)
+                  return (
+                    <Link key={b.id} href={`/studio/brands/${b.slug}`} style={{
+                      display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px',
+                      borderRadius: '7px', cursor: 'pointer', fontSize: '13px',
+                      color: active ? 'var(--text)' : 'var(--muted)',
+                      background: active ? 'var(--bg)' : 'transparent',
+                      fontWeight: active ? 600 : 400, textDecoration: 'none',
+                    }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: b.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>
+                      {b.inbox_count > 0 && <span style={{ fontSize: '10px', color: 'var(--muted)' }}>{b.inbox_count}</span>}
+                    </Link>
+                  )
+                })}
+                <Link href="/studio/brands/new" style={{
+                  display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px',
+                  borderRadius: '7px', fontSize: '12px', color: 'var(--dim)', textDecoration: 'none', marginTop: '2px',
+                }}>
+                  <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Add brand
+                </Link>
+              </div>
+            )
+          )}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: 'var(--border)', margin: '4px 10px' }} />
+
+          {/* Nav */}
+          <nav style={{ padding: '4px 10px 8px' }}>
+            {NAV.map((group, gi) => (
+              <div key={gi} style={{ marginBottom: group.section ? '4px' : '8px' }}>
+                {group.section && (
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--dim)', padding: '8px 8px 4px', letterSpacing: '.04em' }}>
+                    {group.section}
+                  </div>
+                )}
+                {group.items.map(item => {
+                  const active = currentSection === item.key
+                  // Skip Home since it's shown as Studio above
+                  if (item.key === 'dashboard') return null
+                  return (
+                    <Link key={item.key} href={`/studio/${item.key}`} style={{
+                      display: 'flex', alignItems: 'center', gap: '9px',
+                      padding: '7px 10px', borderRadius: '8px',
+                      fontSize: '13px', fontWeight: active ? 600 : 400,
+                      color: active ? 'var(--text)' : 'var(--muted)',
+                      background: active ? 'var(--bg)' : 'transparent',
+                      textDecoration: 'none', marginBottom: '1px',
+                    }}>
+                      <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: active ? 1 : 0.6 }}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            ))}
+          </nav>
+        </div>
 
         {/* Sign out */}
-        <div style={{ padding:'10px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
+        <div style={{ padding: '10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <button onClick={signOut} style={{
-            width:'100%', display:'flex', alignItems:'center', gap:'8px',
-            padding:'7px 10px', borderRadius:'8px', cursor:'pointer',
-            background:'transparent', border:'none', fontSize:'13px',
-            color:'var(--muted)', textAlign:'left',
+            width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '7px 10px', borderRadius: '8px', cursor: 'pointer',
+            background: 'transparent', border: 'none', fontSize: '13px',
+            color: 'var(--muted)', textAlign: 'left',
           }}>
             <SignOutIcon />
             Sign out
@@ -156,7 +252,7 @@ export default function StudioShell({
       </aside>
 
       {/* ── Main ── */}
-      <main style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {children}
       </main>
     </div>
