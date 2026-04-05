@@ -28,23 +28,15 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
 
-      const { data: contact } = await supabase.from('contacts').insert({
-        owner_id: ownerId,
-        brand_id: form.brand_id || null,
-        name: form.name,
-        company: form.company || null,
-        stage: form.stage === 'won' ? 'client' : 'warm',
-        is_person: true,
-      }).select('id').single()
-
       await supabase.from('pipeline_deals').insert({
         owner_id: ownerId,
         brand_id: form.brand_id || null,
-        contact_id: contact?.id || null,
         stage: form.stage,
         value_pence: form.value ? Math.round(parseFloat(form.value) * 100) : 0,
         call_date: form.call_date || null,
         notes: form.notes || null,
+        person_name: form.name,
+        person_company: form.company || null,
       })
 
       setOpen(false)
