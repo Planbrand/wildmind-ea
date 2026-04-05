@@ -2,30 +2,16 @@
 import { useState } from 'react'
 import { syncBankTransactions } from './actions'
 
-const TL_CLIENT_ID = process.env.NEXT_PUBLIC_TRUELAYER_CLIENT_ID!
-const TL_REDIRECT_URI = process.env.NEXT_PUBLIC_TRUELAYER_REDIRECT_URI!
-const TL_AUTH = 'https://auth.truelayer-sandbox.com'
-
 type Props = {
   connected: boolean
   accountName: string | null
   lastSynced: string | null
+  authUrl: string
 }
 
-export function BankSync({ connected, accountName, lastSynced }: Props) {
+export function BankSync({ connected, accountName, lastSynced, authUrl }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [result, setResult] = useState<string | null>(null)
-
-  function connectBank() {
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: TL_CLIENT_ID,
-      redirect_uri: TL_REDIRECT_URI,
-      scope: 'info accounts balance cards transactions offline_access',
-      providers: 'uk-ob-all uk-oauth-all',
-    })
-    window.location.href = `${TL_AUTH}/?${params}`
-  }
 
   async function handleSync() {
     setSyncing(true)
@@ -42,13 +28,13 @@ export function BankSync({ connected, accountName, lastSynced }: Props) {
 
   if (!connected) {
     return (
-      <button onClick={connectBank} style={{
-        padding: '8px 16px', borderRadius: '8px', border: 'none',
+      <a href={authUrl} style={{
+        padding: '8px 16px', borderRadius: '8px',
         background: '#2563eb', color: '#fff', fontSize: '13px',
-        fontWeight: 600, cursor: 'pointer',
+        fontWeight: 600, textDecoration: 'none', display: 'inline-block',
       }}>
         Connect Santander
-      </button>
+      </a>
     )
   }
 
