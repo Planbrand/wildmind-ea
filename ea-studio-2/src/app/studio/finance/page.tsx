@@ -40,6 +40,15 @@ export default async function FinancesPage() {
   const targetMrr = 3000000
   const progress = totalMrr ? Math.round((totalMrr / targetMrr) * 100) : 0
 
+  const tlParams = new URLSearchParams({
+    response_type: 'code',
+    client_id: process.env.TRUELAYER_CLIENT_ID!,
+    redirect_uri: process.env.TRUELAYER_REDIRECT_URI!,
+    scope: 'info accounts balance cards transactions offline_access',
+    providers: 'uk-ob-all uk-oauth-all',
+  })
+  const authUrl = `https://auth.truelayer-sandbox.com/?${tlParams}`
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       {/* Header */}
@@ -55,6 +64,7 @@ export default async function FinancesPage() {
             connected={!!bankConn}
             accountName={bankConn?.account_name || null}
             lastSynced={bankConn?.last_synced || null}
+            authUrl={authUrl}
           />
         </div>
       </div>
