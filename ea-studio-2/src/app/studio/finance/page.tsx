@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+  Qimport { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BankSync } from './BankSync'
 
@@ -44,8 +44,8 @@ export default async function FinancesPage() {
     response_type: 'code',
     client_id: process.env.TRUELAYER_CLIENT_ID!,
     redirect_uri: process.env.TRUELAYER_REDIRECT_URI!,
-    scope: 'info accounts balance cards transactions offline_access',
-    providers: 'uk-ob-all uk-oauth-all',
+    scope: 'info accounts balance transactions offline_access',
+    providers: 'mock',
   })
   const authUrl = `https://auth.truelayer-sandbox.com/?${tlParams}`
 
@@ -168,3 +168,4 @@ export default async function FinancesPage() {
     </div>
   )
 }
+1§
