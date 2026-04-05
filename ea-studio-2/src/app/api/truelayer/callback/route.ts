@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
 
   if (!tokenRes.ok) {
     const err = await tokenRes.text()
-    console.error('Token exchange failed:', err)
-    return NextResponse.redirect(new URL('/studio/finance?error=token_failed', req.url))
+    const msg = encodeURIComponent(err.slice(0, 200))
+    return NextResponse.redirect(new URL(`/studio/finance?error=${msg}`, req.url))
   }
 
   const tokens = await tokenRes.json() as {
