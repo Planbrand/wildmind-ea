@@ -32,14 +32,11 @@ const STAGE_COLORS: Record<string, { bg: string; text: string }> = {
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string; stage?: string; group?: string; view?: string }>
+  searchParams: Promise<{ stage?: string; group?: string; view?: string }>
 }) {
   const sp = await searchParams
   const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
-
-  const { data: brands } = await supabase
-    .from('brands').select('id,name,color,slug').order('sort_order')
 
   let query = supabase
     .from('contacts')
@@ -47,12 +44,7 @@ export default async function PeoplePage({
     .order('name')
     .limit(500)
 
-  if (viewName) {
-    query = query.contains('view_tags', [viewName])
-  } else if (sp.brand && brands) {
-    const brand = (brands as { id: string; slug: string }[]).find(b => b.slug === sp.brand)
-    if (brand) query = query.eq('brand_id', brand.id)
-  }
+  if (viewName) query = query.contains('view_tags', [viewName])
   if (sp.stage) query = query.eq('stage', sp.stage)
 
   const { data: contacts } = await query
@@ -80,26 +72,13 @@ export default async function PeoplePage({
         </div>
 
         {/* People / Other toggle */}
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
-          <Link href={`/studio/people${sp.brand ? `?brand=${sp.brand}` : ''}`} style={toggleStyle(!showOthers)}>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <Link href="/studio/people" style={toggleStyle(!showOthers)}>
             People ({people.length})
           </Link>
-          <Link href={`/studio/people?group=other${sp.brand ? `&brand=${sp.brand}` : ''}`} style={toggleStyle(showOthers)}>
+          <Link href="/studio/people?group=other" style={toggleStyle(showOthers)}>
             Other ({others.length})
           </Link>
-        </div>
-
-        {/* Brand chips */}
-        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
-          <Link href={`/studio/people${sp.group ? `?group=${sp.group}` : ''}`} style={chipStyle(!sp.brand)}>All</Link>
-          {(brands as { id: string; name: string; color: string; slug: string }[])?.map(b => (
-            <Link key={b.id}
-              href={`/studio/people?brand=${b.slug}${sp.group ? `&group=${sp.group}` : ''}`}
-              style={chipStyle(sp.brand === b.slug)}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: b.color, display: 'inline-block', marginRight: 5, flexShrink: 0 }} />
-              {b.name}
-            </Link>
-          ))}
         </div>
       </div>
 
@@ -185,14 +164,3 @@ function toggleStyle(active: boolean): React.CSSProperties {
   }
 }
 
-function chipStyle(active: boolean): React.CSSProperties {
-  return {
-    fontSize: '12px', fontWeight: active ? 600 : 400,
-    padding: '4px 12px', borderRadius: '20px',
-    background: active ? 'var(--accent)' : 'transparent',
-    color: active ? '#fff' : 'var(--muted)',
-    border: '1px solid ' + (active ? 'var(--accent)' : 'var(--border)'),
-    textDecoration: 'none', whiteSpace: 'nowrap' as const,
-    display: 'flex', alignItems: 'center',
-  }
-}

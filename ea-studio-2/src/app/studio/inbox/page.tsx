@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { RecategoriseButton } from './RecategoriseButton'
 
-type Brand = { id: string; name: string; color: string; slug: string }
 type Thread = {
   id: string
   subject: string
@@ -40,16 +39,11 @@ const CAT_COLORS: Record<string, { bg: string; text: string }> = {
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string; category?: string; view?: string }>
+  searchParams: Promise<{ category?: string; view?: string }>
 }) {
   const sp = await searchParams
   const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
-
-  const { data: brands } = await supabase
-    .from('brands')
-    .select('id, name, color, slug')
-    .order('sort_order')
 
   // Build thread query
   let query = supabase
@@ -58,54 +52,16 @@ export default async function InboxPage({
     .order('received_at', { ascending: false })
     .limit(200)
 
-  if (viewName) {
-    query = query.contains('view_tags', [viewName])
-  } else if (sp.brand && brands) {
-    const brand = brands.find((b: Brand) => b.slug === sp.brand)
-    if (brand) query = query.eq('brand_id', brand.id)
-  }
-  if (sp.category) {
-    query = query.eq('category', sp.category)
-  }
+  if (viewName) query = query.contains('view_tags', [viewName])
+  if (sp.category) query = query.eq('category', sp.category)
 
   const { data: threads } = await query
 
-  // Unread counts per brand
-  const { data: unreadRows } = await supabase
-    .from('email_threads')
-    .select('brand_id')
-    .eq('is_read', false)
-
-  const unreadByBrand: Record<string, number> = {}
-  let totalUnread = 0
-  unreadRows?.forEach((r: { brand_id: string | null }) => {
-    totalUnread++
-    if (r.brand_id) unreadByBrand[r.brand_id] = (unreadByBrand[r.brand_id] || 0) + 1
-  })
 
   const count = threads?.length || 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-
-      {/* ── Brand tabs ── */}
-      <div style={{
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', overflowX: 'auto', flexShrink: 0,
-        padding: '0 8px',
-      }}>
-        <BrandTab href="/studio/inbox" active={!sp.brand} label="All" count={totalUnread} />
-        {brands?.map((b: Brand) => (
-          <BrandTab
-            key={b.id}
-            href={`/studio/inbox?brand=${b.slug}${sp.category ? `&category=${sp.category}` : ''}`}
-            active={sp.brand === b.slug}
-            label={b.name}
-            color={b.color}
-            count={unreadByBrand[b.id] || 0}
-          />
-        ))}
-      </div>
 
       {/* ── Category pills ── */}
       <div style={{
@@ -114,10 +70,7 @@ export default async function InboxPage({
       }}>
         {CATEGORIES.map(cat => {
           const active = (sp.category || '') === cat.key
-          const brandPart = sp.brand ? `brand=${sp.brand}&` : ''
-          const href = cat.key
-            ? `/studio/inbox?${brandPart}category=${cat.key}`
-            : `/studio/inbox${sp.brand ? `?brand=${sp.brand}` : ''}`
+          const href = cat.key ? `/studio/inbox?category=${cat.key}` : '/studio/inbox'
           return (
             <Link key={cat.key} href={href} style={{
               fontSize: '12px', fontWeight: active ? 600 : 400,
@@ -242,28 +195,3 @@ export default async function InboxPage({
   )
 }
 
-function BrandTab({ href, active, label, color, count }: {
-  href: string; active: boolean; label: string; color?: string; count: number
-}) {
-  return (
-    <Link href={href} style={{
-      display: 'flex', alignItems: 'center', gap: '6px',
-      padding: '11px 14px',
-      borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-      fontSize: '13px', fontWeight: active ? 600 : 400,
-      color: active ? 'var(--text)' : 'var(--muted)',
-      textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
-    }}>
-      {color && <span style={{ width: 7, height: 7, borderRadius: '50%', background: color }} />}
-      {label}
-      {count > 0 && (
-        <span style={{
-          fontSize: '10px', fontWeight: 700, padding: '1px 5px',
-          borderRadius: '10px', background: 'var(--accent)', color: '#fff',
-        }}>
-          {count}
-        </span>
-      )}
-    </Link>
-  )
-}

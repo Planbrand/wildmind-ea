@@ -3,22 +3,18 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createCampaign } from './actions'
 
-type Brand = { id: string; name: string; color: string; slug: string }
-
-export function NewCampaignButton({ brands, ownerId }: { brands: Brand[]; ownerId: string }) {
+export function NewCampaignButton({ ownerId }: { ownerId: string }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
-  const [form, setForm] = useState({ name: '', brand_id: brands[0]?.id || '' })
-
-  function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
+  const [name, setName] = useState('')
 
   function submit() {
-    if (!form.name.trim() || !form.brand_id) return
+    if (!name.trim()) return
     startTransition(async () => {
-      const id = await createCampaign(ownerId, form.brand_id, form.name)
+      const id = await createCampaign(ownerId, name)
       setOpen(false)
-      setForm({ name: '', brand_id: brands[0]?.id || '' })
+      setName('')
       if (id) router.push(`/studio/campaigns/${id}`)
       else router.refresh()
     })
@@ -41,13 +37,9 @@ export function NewCampaignButton({ brands, ownerId }: { brands: Brand[]; ownerI
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <div style={lbl}>Campaign name</div>
-                <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. UK ecom brands — basket builder Q2" style={inp} autoFocus />
-              </div>
-              <div>
-                <div style={lbl}>Brand</div>
-                <select value={form.brand_id} onChange={e => set('brand_id', e.target.value)} style={inp}>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. UK ecom brands — basket builder Q2"
+                  onKeyDown={e => e.key === 'Enter' && submit()}
+                  style={inp} autoFocus />
               </div>
               <p style={{ fontSize: '12px', color: 'var(--muted)', margin: 0 }}>
                 You&apos;ll set up the ICP, email sequence, and lead list next. Nothing sends until you approve it.
@@ -55,7 +47,7 @@ export function NewCampaignButton({ brands, ownerId }: { brands: Brand[]; ownerI
             </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setOpen(false)} style={btnG}>Cancel</button>
-              <button onClick={submit} disabled={isPending || !form.name.trim() || !form.brand_id} style={btnP}>
+              <button onClick={submit} disabled={isPending || !name.trim()} style={{ ...btnP, opacity: isPending || !name.trim() ? 0.6 : 1 }}>
                 {isPending ? 'Creating…' : 'Create campaign'}
               </button>
             </div>

@@ -2,11 +2,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function createCampaign(ownerId: string, brandId: string, name: string) {
+export async function createCampaign(ownerId: string, name: string) {
   const supabase = await createClient()
   const { data } = await supabase.from('campaigns').insert({
     owner_id: ownerId,
-    brand_id: brandId,
     name,
     status: 'draft',
   }).select('id').single()

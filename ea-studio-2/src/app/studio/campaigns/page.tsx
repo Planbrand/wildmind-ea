@@ -14,7 +14,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; do
 export default async function CampaignsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string; status?: string; view?: string }>
+  searchParams: Promise<{ status?: string; view?: string }>
 }) {
   const sp = await searchParams
   const viewName = sp.view ? decodeURIComponent(sp.view) : null
@@ -22,21 +22,13 @@ export default async function CampaignsPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: brands } = await supabase
-    .from('brands').select('id,name,color,slug').order('sort_order')
-
   let query = supabase
     .from('campaigns')
     .select('*, brands(name,color,slug)')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (viewName) {
-    query = query.contains('view_tags', [viewName])
-  } else if (sp.brand && brands) {
-    const b = brands.find(b => b.slug === sp.brand)
-    if (b) query = query.eq('brand_id', b.id)
-  }
+  if (viewName) query = query.contains('view_tags', [viewName])
   if (sp.status) query = query.eq('status', sp.status)
 
   const { data: campaigns } = await query
@@ -55,10 +47,10 @@ export default async function CampaignsPage({
               {active.length} live · {pendingApproval.length} need approval · {all.length} total
             </div>
           </div>
-          <NewCampaignButton brands={brands || []} ownerId={user.id} />
+          <NewCampaignButton ownerId={user.id} />
         </div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <FilterChip href="/studio/campaigns" active={!sp.status && !sp.brand} label="All" />
+          <FilterChip href="/studio/campaigns" active={!sp.status} label="All" />
           <FilterChip href="/studio/campaigns?status=pending_approval" active={sp.status === 'pending_approval'} label="Needs approval" dot="#f59e0b" />
           <FilterChip href="/studio/campaigns?status=active" active={sp.status === 'active'} label="Live" dot="#16a34a" />
           <FilterChip href="/studio/campaigns?status=draft" active={sp.status === 'draft'} label="Drafts" />
