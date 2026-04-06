@@ -6,9 +6,9 @@ const CURRENCIES = ['GBP', 'USD', 'EUR', 'TRY', 'CAD', 'AUD']
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€', TRY: '₺', CAD: 'C$', AUD: 'A$' }
 
 export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
-
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const [form, setForm] = useState({
     amount: '',
     merchant: '',
@@ -21,6 +21,7 @@ export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
   async function handleSubmit() {
     if (!form.amount || !form.merchant) return
     setSaving(true)
+    setErr(null)
     try {
       await addExpense({
         amount: parseFloat(form.amount),
@@ -33,6 +34,8 @@ export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
       })
       setOpen(false)
       setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0] })
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to save expense')
     } finally {
       setSaving(false)
     }
@@ -114,6 +117,12 @@ export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
+
+            {err && (
+              <div style={{ fontSize: '12px', color: '#dc2626', background: 'rgba(220,38,38,.06)', border: '1px solid rgba(220,38,38,.2)', borderRadius: '8px', padding: '8px 12px', marginBottom: '12px' }}>
+                {err}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setOpen(false)} style={{

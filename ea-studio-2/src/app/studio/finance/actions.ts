@@ -122,7 +122,7 @@ export async function addExpense(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  await supabase.from('expenses').insert({
+  const { error } = await supabase.from('expenses').insert({
     owner_id: user.id,
     amount_pence: Math.round(data.amount * 100),
     merchant: data.merchant,
@@ -133,6 +133,8 @@ export async function addExpense(data: {
     view_tags: data.view_tags || [],
     contact_id: data.contact_id || null,
   })
+
+  if (error) throw new Error(error.message)
 
   revalidatePath('/studio/finance')
 }
