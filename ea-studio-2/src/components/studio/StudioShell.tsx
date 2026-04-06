@@ -1,26 +1,25 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { createSection, createView } from '@/app/studio/sections/actions'
+import ViewsBar from './ViewsBar'
 
 type Section = { id: string; name: string; icon: string | null; sort_order: number }
 type View = { id: string; section_id: string | null; name: string; slug: string; color: string; icon: string | null; is_studio: boolean; sort_order: number }
 
 const NAV = [
   { section: 'Business', items: [
-    { key: 'pipeline',   label: 'Pipeline',  icon: <PipelineIcon /> },
-    { key: 'finance',    label: 'Finance',   icon: <FinanceIcon /> },
-    { key: 'inbox',      label: 'Inbox',     icon: <InboxIcon /> },
-    { key: 'campaigns',  label: 'Campaigns', icon: <CampaignIcon /> },
-    { key: 'agents',     label: 'Agents',    icon: <AgentIcon /> },
+    { key: 'pipeline',   label: 'Pipeline',   icon: <PipelineIcon /> },
+    { key: 'finance',    label: 'Finance',    icon: <FinanceIcon /> },
+    { key: 'inbox',      label: 'Inbox',      icon: <InboxIcon /> },
+    { key: 'campaigns',  label: 'Campaigns',  icon: <CampaignIcon /> },
+    { key: 'agents',     label: 'Agents',     icon: <AgentIcon /> },
   ]},
   { section: 'Personal', items: [
-    { key: 'tasks',      label: 'Tasks',     icon: <TaskIcon /> },
-    { key: 'goals',      label: 'Goals',     icon: <GoalIcon /> },
-    { key: 'habits',     label: 'Habits',    icon: <HabitIcon /> },
-    { key: 'people',     label: 'People',    icon: <PeopleIcon /> },
+    { key: 'tasks',      label: 'Tasks',      icon: <TaskIcon /> },
+    { key: 'goals',      label: 'Goals',      icon: <GoalIcon /> },
+    { key: 'habits',     label: 'Habits',     icon: <HabitIcon /> },
+    { key: 'people',     label: 'People',     icon: <PeopleIcon /> },
   ]},
   { section: 'EA', items: [
     { key: 'ea-dna',     label: 'DNA Fields', icon: <DnaIcon /> },
@@ -42,51 +41,13 @@ export default function StudioShell({
   const supabase = createClient()
   const currentKey = pathname.split('/studio/')[1]?.split('/')[0] || 'dashboard'
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const [addingSectionName, setAddingSectionName] = useState('')
-  const [showAddSection, setShowAddSection] = useState(false)
-  const [addingView, setAddingView] = useState<string | null>(null) // section id
-  const [newViewName, setNewViewName] = useState('')
-  const [newViewColor, setNewViewColor] = useState('#059669')
-  const [saving, setSaving] = useState(false)
+  const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
 
   async function signOut() {
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()
   }
-
-  async function handleAddSection() {
-    if (!addingSectionName.trim()) return
-    setSaving(true)
-    try {
-      await createSection(addingSectionName, '')
-      setAddingSectionName('')
-      setShowAddSection(false)
-      router.refresh()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleAddView() {
-    if (!newViewName.trim() || !addingView) return
-    setSaving(true)
-    try {
-      const v = await createView(addingView, newViewName, newViewColor, '')
-      setNewViewName('')
-      setNewViewColor('#059669')
-      setAddingView(null)
-      if (v?.slug) router.push(`/studio/views/${v.slug}`)
-      else router.refresh()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
-
-  const COLORS = ['#059669', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444', '#14b8a6', '#f97316']
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
@@ -114,89 +75,6 @@ export default function StudioShell({
           </div>
 
           <div style={{ height: 1, background: 'var(--border)', margin: '6px 10px' }} />
-
-          {/* Sections + Views */}
-          {sections.length > 0 && (
-            <div style={{ padding: '0 10px' }}>
-              {sections.map(sec => {
-                const secViews = views.filter(v => v.section_id === sec.id).sort((a, b) => a.sort_order - b.sort_order)
-                const isCollapsed = collapsed[sec.id]
-                return (
-                  <div key={sec.id} style={{ marginBottom: '4px' }}>
-                    <button onClick={() => setCollapsed(c => ({ ...c, [sec.id]: !c[sec.id] }))} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '.06em', textAlign: 'left' }}>
-                      <span style={{ fontSize: '9px', opacity: 0.5 }}>{isCollapsed ? '▶' : '▼'}</span>
-                      {sec.icon && <span>{sec.icon}</span>}
-                      {sec.name}
-                    </button>
-                    {!isCollapsed && (
-                      <>
-                        {secViews.map(v => {
-                          const isActive = pathname === `/studio/views/${v.slug}` || pathname.startsWith(`/studio/views/${v.slug}?`)
-                          return (
-                            <Link key={v.id} href={`/studio/views/${v.slug}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px 6px 22px', borderRadius: '7px', fontSize: '13px', fontWeight: isActive ? 600 : 400, color: isActive ? 'var(--text)' : 'var(--muted)', background: isActive ? 'var(--bg)' : 'transparent', textDecoration: 'none', marginBottom: '1px' }}>
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: v.color, flexShrink: 0 }} />
-                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
-                              {v.is_studio && <span style={{ fontSize: '8px', color: 'var(--accent)', fontWeight: 700 }}>ALL</span>}
-                            </Link>
-                          )
-                        })}
-                        {/* Add view inline form */}
-                        {addingView === sec.id ? (
-                          <div style={{ padding: '6px 8px 6px 22px' }}>
-                            <input
-                              value={newViewName}
-                              onChange={e => setNewViewName(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') handleAddView(); if (e.key === 'Escape') setAddingView(null) }}
-                              placeholder="View name…"
-                              autoFocus
-                              style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: '12px', outline: 'none', marginBottom: '6px', boxSizing: 'border-box' }}
-                            />
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                              {COLORS.map(c => (
-                                <button key={c} onClick={() => setNewViewColor(c)} style={{ width: 16, height: 16, borderRadius: '50%', background: c, border: newViewColor === c ? '2px solid var(--text)' : '2px solid transparent', cursor: 'pointer', padding: 0 }} />
-                              ))}
-                            </div>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              <button onClick={() => setAddingView(null)} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid var(--border)', borderRadius: '5px', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>Cancel</button>
-                              <button onClick={handleAddView} disabled={saving} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '5px', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer' }}>Create</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button onClick={() => { setAddingView(sec.id); setNewViewName('') }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px 5px 22px', borderRadius: '7px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12px', color: 'var(--dim)', width: '100%', textAlign: 'left' }}>
-                            <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> Add view
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )
-              })}
-
-              {/* Add section */}
-              {showAddSection ? (
-                <div style={{ padding: '6px 8px', marginBottom: '4px' }}>
-                  <input
-                    value={addingSectionName}
-                    onChange={e => setAddingSectionName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddSection(); if (e.key === 'Escape') setShowAddSection(false) }}
-                    placeholder="Section name…"
-                    autoFocus
-                    style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--accent)', background: 'var(--bg)', color: 'var(--text)', fontSize: '12px', outline: 'none', marginBottom: '6px', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button onClick={() => setShowAddSection(false)} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid var(--border)', borderRadius: '5px', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>Cancel</button>
-                    <button onClick={handleAddSection} disabled={saving} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '5px', background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer' }}>Create</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setShowAddSection(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '11px', color: 'var(--dim)', marginBottom: '6px', width: '100%', textAlign: 'left' }}>
-                  <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span> Add section
-                </button>
-              )}
-            </div>
-          )}
-
-          <div style={{ height: 1, background: 'var(--border)', margin: '4px 10px' }} />
 
           {/* Static nav */}
           <nav style={{ padding: '4px 10px 8px' }}>
@@ -227,7 +105,10 @@ export default function StudioShell({
 
       {/* ── Main ── */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {children}
+        <ViewsBar sections={sections} views={views} />
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {children}
+        </div>
       </main>
     </div>
   )
