@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { UploadContactsButton } from './UploadContactsButton'
 
 type Contact = {
   id: string
@@ -69,6 +70,7 @@ export default async function PeoplePage({
               {people.length} people · {others.length} other
             </div>
           </div>
+          <UploadContactsButton viewName={viewName} />
         </div>
 
         {/* People / Other toggle */}
