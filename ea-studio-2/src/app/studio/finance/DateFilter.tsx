@@ -9,15 +9,20 @@ const PRESETS = [
   { label: 'This year', value: 'this_year' },
 ]
 
-export function DateFilter({ active, tab }: { active: string; tab: string }) {
+export function DateFilter({ active, tab, viewName }: { active: string; tab: string; viewName?: string | null }) {
   const router = useRouter()
+
+  function go(range: string) {
+    const vq = viewName ? `&view=${encodeURIComponent(viewName)}` : ''
+    router.push(`/studio/finance?tab=${tab}&range=${range}${vq}`)
+  }
 
   return (
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       {PRESETS.map(p => (
         <button
           key={p.value}
-          onClick={() => router.push(`/studio/finance?tab=${tab}&range=${p.value}`)}
+          onClick={() => go(p.value)}
           style={{
             padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border)',
             background: active === p.value ? 'var(--accent)' : 'transparent',

@@ -85,8 +85,6 @@ export default async function FinancesPage({
   })
   const authUrl = `https://auth.truelayer-sandbox.com/?${tlParams}`
 
-  const brandMap = Object.fromEntries((brands || []).map(b => [b.id, b]))
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       {/* Header */}
@@ -101,19 +99,22 @@ export default async function FinancesPage({
           {[
             { key: 'overview', label: 'Overview' },
             { key: 'expenses', label: `Expenses${(expenses || []).length > 0 ? ` (${expenses!.length})` : ''}` },
-          ].map(t => (
-            <Link key={t.key} href={`/studio/finance?tab=${t.key}&range=${range}`} style={{
-              padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: tab === t.key ? 700 : 400,
-              background: tab === t.key ? 'var(--accent)' : 'transparent',
-              color: tab === t.key ? '#fff' : 'var(--muted)',
-              textDecoration: 'none', border: '1px solid ' + (tab === t.key ? 'var(--accent)' : 'var(--border)'),
-            }}>
-              {t.label}
-            </Link>
-          ))}
+          ].map(t => {
+            const vq = viewName ? `&view=${encodeURIComponent(viewName)}` : ''
+            return (
+              <Link key={t.key} href={`/studio/finance?tab=${t.key}&range=${range}${vq}`} style={{
+                padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: tab === t.key ? 700 : 400,
+                background: tab === t.key ? 'var(--accent)' : 'transparent',
+                color: tab === t.key ? '#fff' : 'var(--muted)',
+                textDecoration: 'none', border: '1px solid ' + (tab === t.key ? 'var(--accent)' : 'var(--border)'),
+              }}>
+                {t.label}
+              </Link>
+            )
+          })}
         </div>
 
-        <DateFilter active={range} tab={tab} />
+        <DateFilter active={range} tab={tab} viewName={viewName} />
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
@@ -219,7 +220,7 @@ export default async function FinancesPage({
                 <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>Expenses</div>
                 <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{pence(totalExpenses)} total · {(expenses || []).length} entries</div>
               </div>
-              <AddExpenseButton brands={brands || []} />
+              <AddExpenseButton />
             </div>
 
             {(expenses || []).length === 0 ? (
@@ -231,7 +232,7 @@ export default async function FinancesPage({
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      {['Date', 'Merchant', 'Description', 'Frequency', 'Brands', 'Amount', ''].map(h => (
+                      {['Date', 'Merchant', 'Description', 'Frequency', 'Amount', ''].map(h => (
                         <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>
                       ))}
                     </tr>
@@ -243,22 +244,6 @@ export default async function FinancesPage({
                         <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{e.merchant}</td>
                         <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.description || '—'}</td>
                         <td style={{ padding: '12px 14px', fontSize: '12px', color: 'var(--muted)' }}>{FREQ_LABEL[e.frequency] || e.frequency}</td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {(e.brand_ids || []).length === 0 ? (
-                              <span style={{ fontSize: '11px', color: 'var(--dim)' }}>—</span>
-                            ) : (
-                              (e.brand_ids || []).map((bid: string) => {
-                                const b = brandMap[bid]
-                                return b ? (
-                                  <span key={bid} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: b.color + '18', color: b.color }}>
-                                    {b.name}
-                                  </span>
-                                ) : null
-                              })
-                            )}
-                          </div>
-                        </td>
                         <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: '#dc2626', whiteSpace: 'nowrap' }}>{pence(e.amount_pence)}</td>
                         <td style={{ padding: '12px 14px' }}>
                           <form action={async () => { 'use server'; await deleteExpense(e.id) }}>

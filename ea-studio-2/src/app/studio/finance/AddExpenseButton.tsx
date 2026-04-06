@@ -1,13 +1,16 @@
 'use client'
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { addExpense } from './actions'
-
-type Brand = { id: string; name: string; color: string }
 
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'TRY', 'CAD', 'AUD']
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€', TRY: '₺', CAD: 'C$', AUD: 'A$' }
 
-export function AddExpenseButton({ brands }: { brands: Brand[] }) {
+export function AddExpenseButton() {
+  const searchParams = useSearchParams()
+  const rawView = searchParams.get('view')
+  const viewName = rawView ? decodeURIComponent(rawView) : null
+
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -17,17 +20,7 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
     currency: 'GBP',
     description: '',
     date: new Date().toISOString().split('T')[0],
-    brand_ids: [] as string[],
   })
-
-  function toggleBrand(id: string) {
-    setForm(f => ({
-      ...f,
-      brand_ids: f.brand_ids.includes(id)
-        ? f.brand_ids.filter(b => b !== id)
-        : [...f.brand_ids, id],
-    }))
-  }
 
   async function handleSubmit() {
     if (!form.amount || !form.merchant) return
@@ -40,10 +33,10 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
         currency: form.currency,
         description: form.description,
         date: form.date,
-        brand_ids: form.brand_ids,
+        view_tags: viewName ? [viewName] : [],
       })
       setOpen(false)
-      setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0], brand_ids: [] })
+      setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0] })
     } finally {
       setSaving(false)
     }
@@ -62,7 +55,8 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
       </button>
 
       {open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}>
           <div style={{ background: 'var(--surface)', borderRadius: '16px', padding: '28px', width: '500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '20px' }}>Add expense</div>
 
@@ -72,7 +66,7 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
                 <label style={labelStyle}>Amount ({sym})</label>
                 <input type="number" step="0.01" placeholder="0.00" value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  style={inputStyle} />
+                  autoFocus style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Currency</label>
@@ -97,7 +91,7 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
             </div>
 
             {/* Frequency */}
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label style={labelStyle}>Frequency</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {[
@@ -118,32 +112,12 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
             </div>
 
             {/* Description */}
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label style={labelStyle}>Description (optional)</label>
               <textarea placeholder="What was this for?" value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
-
-            {/* Brands */}
-            {brands.length > 0 && (
-              <div style={{ marginBottom: '20px' }}>
-                <label style={labelStyle}>Brands (which brands use this?)</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {brands.map(b => (
-                    <button key={b.id} onClick={() => toggleBrand(b.id)} style={{
-                      padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
-                      border: `1px solid ${form.brand_ids.includes(b.id) ? b.color : 'var(--border)'}`,
-                      background: form.brand_ids.includes(b.id) ? b.color + '22' : 'transparent',
-                      color: form.brand_ids.includes(b.id) ? b.color : 'var(--muted)',
-                      cursor: 'pointer',
-                    }}>
-                      {b.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setOpen(false)} style={{
@@ -153,7 +127,7 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
               <button onClick={handleSubmit} disabled={saving || !form.amount || !form.merchant} style={{
                 padding: '8px 18px', borderRadius: '8px', border: 'none',
                 background: 'var(--accent)', color: '#fff', fontSize: '13px',
-                fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+                fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving || !form.amount || !form.merchant ? 0.6 : 1,
               }}>
                 {saving ? 'Saving…' : 'Save expense'}
               </button>

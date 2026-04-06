@@ -115,7 +115,7 @@ export async function addExpense(data: {
   currency: string
   description: string
   date: string
-  brand_ids: string[]
+  view_tags?: string[]
   contact_id?: string
 }) {
   const supabase = await createClient()
@@ -130,7 +130,7 @@ export async function addExpense(data: {
     currency: data.currency,
     description: data.description,
     date: data.date,
-    brand_ids: data.brand_ids,
+    view_tags: data.view_tags || [],
     contact_id: data.contact_id || null,
   })
 
