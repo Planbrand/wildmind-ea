@@ -244,6 +244,17 @@ export default async function FinancesPage({
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
+                      <td colSpan={4} style={{ padding: '12px 14px', fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>
+                        Total · {(expenses || []).length} entries
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '14px', fontWeight: 800, color: '#dc2626', whiteSpace: 'nowrap' }}>
+                        {pence(totalExpenses)}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
