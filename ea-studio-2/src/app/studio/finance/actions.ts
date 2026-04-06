@@ -117,10 +117,10 @@ export async function addExpense(data: {
   date: string
   view_tags?: string[]
   contact_id?: string
-}) {
+}): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase.from('expenses').insert({
     owner_id: user.id,
@@ -134,9 +134,10 @@ export async function addExpense(data: {
     contact_id: data.contact_id || null,
   })
 
-  if (error) throw new Error(error.message)
+  if (error) return { error: error.message }
 
   revalidatePath('/studio/finance')
+  return {}
 }
 
 export async function deleteExpense(id: string) {
