@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { BankSync } from './BankSync'
 import { DateFilter } from './DateFilter'
 import { AddExpenseButton } from './AddExpenseButton'
 import { deleteExpense } from './actions'
@@ -57,13 +56,11 @@ export default async function FinancesPage({
     { data: brands },
     { data: txIn },
     { data: txOut },
-    { data: bankConn },
     { data: expenses },
   ] = await Promise.all([
     supabase.from('brands').select('id,name,color,slug,mrr_pence').eq('owner_id', user.id).order('sort_order'),
     txInQ,
     txOutQ,
-    supabase.from('bank_connections').select('account_name,last_synced').eq('owner_id', user.id).maybeSingle(),
     expQ,
   ])
 
@@ -76,22 +73,12 @@ export default async function FinancesPage({
   const targetMrr = 3000000
   const progress = totalMrr ? Math.round((totalMrr / targetMrr) * 100) : 0
 
-  const tlParams = new URLSearchParams({
-    response_type: 'code',
-    client_id: process.env.TRUELAYER_CLIENT_ID!,
-    redirect_uri: process.env.TRUELAYER_REDIRECT_URI!,
-    scope: 'info accounts balance transactions offline_access',
-    providers: 'mock',
-  })
-  const authUrl = `https://auth.truelayer-sandbox.com/?${tlParams}`
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--surface)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ marginBottom: '12px' }}>
           <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>Finances</div>
-          <BankSync connected={!!bankConn} accountName={bankConn?.account_name || null} lastSynced={bankConn?.last_synced || null} authUrl={authUrl} />
         </div>
 
         {/* Tabs */}
