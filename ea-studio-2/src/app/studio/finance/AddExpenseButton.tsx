@@ -1,11 +1,13 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { addExpense } from './actions'
 
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'TRY', 'CAD', 'AUD']
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€', TRY: '₺', CAD: 'C$', AUD: 'A$' }
 
 export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -37,6 +39,7 @@ export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
       } else {
         setOpen(false)
         setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0] })
+        router.refresh()
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Something went wrong')
