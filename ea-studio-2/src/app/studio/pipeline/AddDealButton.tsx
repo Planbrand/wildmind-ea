@@ -1,20 +1,22 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 type Brand = { id: string; name: string; color: string; slug: string }
 
 const STAGES = [
-  { key: 'replied', label: 'Replied' },
-  { key: 'call_booked', label: 'Call booked' },
+  { key: 'replied',       label: 'Replied' },
+  { key: 'call_booked',   label: 'Call booked' },
   { key: 'proposal_sent', label: 'Proposal sent' },
-  { key: 'won', label: 'Won' },
+  { key: 'won',           label: 'Won' },
 ]
 
 export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: string }) {
-  const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
   const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '', company: '', brand_id: brands[0]?.id || '',
     stage: 'replied', value: '', call_date: '', notes: '',
@@ -22,32 +24,67 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
 
   function set(k: string, v: string) { setForm(p => ({ ...p, [k]: v })) }
 
-  function submit() {
+  async function submit() {
     if (!form.name.trim()) return
-    startTransition(async () => {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
+    setSaving(true)
+    setError(null)
 
-      const { error } = await supabase.from('pipeline_deals').insert({
+    const supabase = createClient()
+
+    // First: create a contact so the join works correctly
+    const { data: contact, error: contactErr } = await supabase
+      .from('contacts')
+      .insert({
         owner_id: ownerId,
         brand_id: form.brand_id || null,
-        stage: form.stage,
-        value_pence: form.value ? Math.round(parseFloat(form.value) * 100) : 0,
-        call_date: form.call_date || null,
-        notes: form.notes || null,
-        person_name: form.name.trim(),
-        person_company: form.company.trim() || null,
+        name: form.name.trim(),
+        company: form.company.trim() || null,
+        stage: 'warm',
       })
+      .select('id')
+      .single()
 
-      if (error) {
-        console.error('pipeline_deals insert error:', error)
+    if (contactErr) {
+      console.error('contacts insert error:', contactErr)
+      // Non-fatal: continue without contact_id
+    }
+
+    // Build the deal payload — only include columns we know exist
+    const dealPayload: Record<string, unknown> = {
+      owner_id: ownerId,
+      brand_id: form.brand_id || null,
+      stage: form.stage,
+      value_pence: form.value ? Math.round(parseFloat(form.value) * 100) : 0,
+      call_date: form.call_date || null,
+      notes: form.notes || null,
+    }
+
+    // Link contact if it was created
+    if (contact?.id) dealPayload.contact_id = contact.id
+
+    const { error: dealErr } = await supabase.from('pipeline_deals').insert(dealPayload)
+
+    if (dealErr) {
+      // contact_id column might not exist — retry without it
+      if (dealErr.message?.includes('contact_id') || dealErr.code === '42703') {
+        delete dealPayload.contact_id
+        const { error: retryErr } = await supabase.from('pipeline_deals').insert(dealPayload)
+        if (retryErr) {
+          setError(retryErr.message)
+          setSaving(false)
+          return
+        }
+      } else {
+        setError(dealErr.message)
+        setSaving(false)
         return
       }
+    }
 
-      setOpen(false)
-      setForm({ name: '', company: '', brand_id: brands[0]?.id || '', stage: 'replied', value: '', call_date: '', notes: '' })
-      router.refresh()
-    })
+    setSaving(false)
+    setOpen(false)
+    setForm({ name: '', company: '', brand_id: brands[0]?.id || '', stage: 'replied', value: '', call_date: '', notes: '' })
+    router.refresh()
   }
 
   return (
@@ -66,7 +103,7 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
             </div>
 
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
-              <Field label="Contact name *" value={form.name} onChange={v => set('name', v)} />
+              <Field label="Contact name *" value={form.name} onChange={v => set('name', v)} autoFocus />
               <Field label="Company" value={form.company} onChange={v => set('company', v)} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
@@ -91,14 +128,22 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
               )}
               <div>
                 <div style={lbl}>Notes</div>
-                <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} style={{ ...inp, resize: 'vertical' }} />
+                <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={2}
+                  style={{ ...inp, resize: 'vertical', outline: 'none' }} />
               </div>
+
+              {error && (
+                <div style={{ fontSize: '12px', color: '#dc2626', background: 'rgba(220,38,38,.06)', border: '1px solid rgba(220,38,38,.2)', borderRadius: '7px', padding: '8px 12px' }}>
+                  {error}
+                </div>
+              )}
             </div>
 
             <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setOpen(false)} style={btnG}>Cancel</button>
-              <button onClick={submit} disabled={isPending || !form.name.trim()} style={btnP}>
-                {isPending ? 'Adding…' : 'Add deal'}
+              <button onClick={submit} disabled={saving || !form.name.trim()}
+                style={{ ...btnP, opacity: saving || !form.name.trim() ? 0.6 : 1, cursor: saving || !form.name.trim() ? 'not-allowed' : 'pointer' }}>
+                {saving ? 'Adding…' : 'Add deal'}
               </button>
             </div>
           </div>
@@ -108,16 +153,17 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
   )
 }
 
-function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function Field({ label, value, onChange, type = 'text', autoFocus }: { label: string; value: string; onChange: (v: string) => void; type?: string; autoFocus?: boolean }) {
   return (
     <div>
       <div style={lbl}>{label}</div>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={inp} />
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} autoFocus={autoFocus}
+        style={inp} />
     </div>
   )
 }
 
 const lbl: React.CSSProperties = { fontSize: '11px', fontWeight: 600, color: 'var(--dim)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '5px' }
-const inp: React.CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text)', background: 'var(--bg)', fontFamily: 'inherit', boxSizing: 'border-box' }
-const btnP: React.CSSProperties = { padding: '8px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }
+const inp: React.CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text)', background: 'var(--bg)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }
+const btnP: React.CSSProperties = { padding: '8px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '13px', fontWeight: 600 }
 const btnG: React.CSSProperties = { padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', fontSize: '13px', color: 'var(--muted)', cursor: 'pointer' }
