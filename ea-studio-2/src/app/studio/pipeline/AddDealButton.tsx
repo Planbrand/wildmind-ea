@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-type Brand = { id: string; name: string; color: string; slug: string }
 
 const STAGES = [
   { key: 'replied',       label: 'Replied' },
@@ -12,13 +11,13 @@ const STAGES = [
   { key: 'won',           label: 'Won' },
 ]
 
-export function AddDealButton({ brands, ownerId, viewName }: { brands: Brand[]; ownerId: string; viewName?: string | null }) {
+export function AddDealButton({ ownerId, viewName }: { ownerId: string; viewName?: string | null }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
-    name: '', company: '', brand_id: brands[0]?.id || '',
+    name: '', company: '',
     stage: 'replied', value: '', call_date: '', notes: '',
   })
 
@@ -36,7 +35,6 @@ export function AddDealButton({ brands, ownerId, viewName }: { brands: Brand[]; 
       .from('contacts')
       .insert({
         owner_id: ownerId,
-        brand_id: form.brand_id || null,
         name: form.name.trim(),
         company: form.company.trim() || null,
         stage: 'warm',
@@ -46,7 +44,6 @@ export function AddDealButton({ brands, ownerId, viewName }: { brands: Brand[]; 
 
     const { error: dealErr } = await supabase.from('pipeline_deals').insert({
       owner_id: ownerId,
-      brand_id: form.brand_id || null,
       stage: form.stage,
       value_pence: form.value ? Math.round(parseFloat(form.value) * 100) : 0,
       call_date: form.call_date || null,
@@ -63,7 +60,7 @@ export function AddDealButton({ brands, ownerId, viewName }: { brands: Brand[]; 
 
     setSaving(false)
     setOpen(false)
-    setForm({ name: '', company: '', brand_id: brands[0]?.id || '', stage: 'replied', value: '', call_date: '', notes: '' })
+    setForm({ name: '', company: '', stage: 'replied', value: '', call_date: '', notes: '' })
     router.refresh()
   }
 
@@ -96,15 +93,6 @@ export function AddDealButton({ brands, ownerId, viewName }: { brands: Brand[]; 
               </div>
               {form.stage === 'call_booked' && (
                 <Field label="Call date & time" value={form.call_date} onChange={v => set('call_date', v)} type="datetime-local" />
-              )}
-              {brands.length > 0 && (
-                <div>
-                  <div style={lbl}>Brand</div>
-                  <select value={form.brand_id} onChange={e => set('brand_id', e.target.value)} style={inp}>
-                    <option value="">No brand</option>
-                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
               )}
               <div>
                 <div style={lbl}>Notes</div>

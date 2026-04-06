@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { AddDealButton } from './AddDealButton'
+import { DealMenu } from './DealMenu'
 
 type Deal = {
   id: string
@@ -81,7 +82,7 @@ export default async function PipelinePage({
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <AddDealButton brands={brands || []} ownerId={user.id} viewName={viewName} />
+            <AddDealButton ownerId={user.id} viewName={viewName} />
           </div>
         </div>
 
@@ -141,11 +142,14 @@ export default async function PipelinePage({
                         border: '1px solid var(--border)',
                         borderLeft: `3px solid ${stage.color}`,
                         borderRadius: '10px', padding: '12px 14px',
-                        textDecoration: 'none',
+                        textDecoration: 'none', position: 'relative',
                         boxShadow: isCallSoon ? `0 0 0 2px ${stage.color}44` : 'none',
                       }}>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '3px' }}>
-                          {dealName(d)}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '3px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                            {dealName(d)}
+                          </div>
+                          <DealMenu dealId={d.id} />
                         </div>
                         {dealCompany(d) && (
                           <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '6px' }}>
