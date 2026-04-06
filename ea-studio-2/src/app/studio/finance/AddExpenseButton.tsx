@@ -22,21 +22,26 @@ export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
     if (!form.amount || !form.merchant) return
     setSaving(true)
     setErr(null)
-    const result = await addExpense({
-      amount: parseFloat(form.amount),
-      merchant: form.merchant,
-      frequency: form.frequency,
-      currency: form.currency,
-      description: form.description,
-      date: form.date,
-      view_tags: viewName ? [viewName] : [],
-    })
-    setSaving(false)
-    if (result.error) {
-      setErr(result.error)
-    } else {
-      setOpen(false)
-      setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0] })
+    try {
+      const result = await addExpense({
+        amount: parseFloat(form.amount),
+        merchant: form.merchant,
+        frequency: form.frequency,
+        currency: form.currency,
+        description: form.description,
+        date: form.date,
+        view_tags: viewName ? [viewName] : [],
+      })
+      if (result.error) {
+        setErr(result.error)
+      } else {
+        setOpen(false)
+        setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0] })
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Something went wrong')
+    } finally {
+      setSaving(false)
     }
   }
 
