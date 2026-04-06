@@ -1,7 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { AddExpenseButton } from './AddExpenseButton'
 import { deleteExpense } from './actions'
+
+function getServiceClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key)
+}
 
 function pence(n: number) {
   const p = Math.round(n / 100)
@@ -43,7 +49,8 @@ export default async function FinancesPage({
 
   let txInQ = supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'in').gte('date', from).lte('date', to).order('date', { ascending: false })
   let txOutQ = supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'out').gte('date', from).lte('date', to).order('date', { ascending: false })
-  let expQ = supabase.from('expenses').select('*').eq('owner_id', user.id).order('date', { ascending: false })
+  const svc = getServiceClient()
+  let expQ = svc.from('expenses').select('*').eq('owner_id', user.id).order('date', { ascending: false })
 
   if (viewName) {
     txInQ = txInQ.contains('view_tags', [viewName])
