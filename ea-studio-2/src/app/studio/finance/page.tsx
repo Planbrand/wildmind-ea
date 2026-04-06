@@ -48,7 +48,6 @@ export default async function FinancesPage({
   if (viewName) {
     txInQ = txInQ.contains('view_tags', [viewName])
     txOutQ = txOutQ.contains('view_tags', [viewName])
-    expQ = expQ.contains('view_tags', [viewName])
   }
 
   const [
