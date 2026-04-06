@@ -220,7 +220,7 @@ export default async function FinancesPage({
                 <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>Expenses</div>
                 <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{pence(totalExpenses)} total · {(expenses || []).length} entries</div>
               </div>
-              <AddExpenseButton />
+              <AddExpenseButton viewName={viewName} />
             </div>
 
             {(expenses || []).length === 0 ? (

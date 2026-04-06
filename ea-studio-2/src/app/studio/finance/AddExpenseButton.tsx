@@ -1,15 +1,11 @@
 'use client'
 import { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { addExpense } from './actions'
 
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'TRY', 'CAD', 'AUD']
 const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€', TRY: '₺', CAD: 'C$', AUD: 'A$' }
 
-export function AddExpenseButton() {
-  const searchParams = useSearchParams()
-  const rawView = searchParams.get('view')
-  const viewName = rawView ? decodeURIComponent(rawView) : null
+export function AddExpenseButton({ viewName }: { viewName?: string | null }) {
 
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
