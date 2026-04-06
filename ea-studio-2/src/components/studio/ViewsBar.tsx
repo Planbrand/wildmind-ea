@@ -22,18 +22,14 @@ export default function ViewsBar({ sections, views }: { sections: Section[]; vie
   const [saving, setSaving] = useState(false)
 
   function selectView(v: View) {
-    if (v.is_studio) {
-      // Studio = clear filter, show everything
-      router.replace(pathname)
+    const params = new URLSearchParams(searchParams.toString())
+    if (v.is_studio || activeViewName === v.name) {
+      params.delete('view')
     } else {
-      const alreadyActive = activeViewName === v.name
-      if (alreadyActive) {
-        // Clicking active view deselects it
-        router.replace(pathname)
-      } else {
-        router.replace(`${pathname}?view=${encodeURIComponent(v.name)}`)
-      }
+      params.set('view', v.name)
     }
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
   }
 
   async function handleAddView() {
@@ -174,7 +170,7 @@ export default function ViewsBar({ sections, views }: { sections: Section[]; vie
           <span style={{ fontSize: 10, color: 'var(--dim)', fontWeight: 600 }}>Filtered:</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{activeViewName}</span>
           <button
-            onClick={() => router.replace(pathname)}
+            onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.delete('view'); const qs = p.toString(); router.replace(qs ? `${pathname}?${qs}` : pathname) }}
             style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--dim)', cursor: 'pointer' }}
           >
             ✕
