@@ -78,16 +78,22 @@ export interface Goal {
   id: string
   owner_id: string
   brand_id: string | null
+  parent_goal_id: string | null
   title: string
   description: string | null
   goal_type: string
+  priority: number
   target_value: number | null
   current_value: number
   unit: string | null
+  financial_target_pence: number | null
   progress_pct: number
   target_date: string | null
   status: string
+  related_brand_ids: string[]
+  people_to_reach: string[]
   ea_insight: string | null
+  view_tags: string[]
   goal_milestones?: GoalMilestone[]
   created_at: string
   updated_at: string
@@ -224,6 +230,11 @@ export interface EAAgenda {
   is_pinned: boolean
   is_user_edited: boolean
   priority: number
+  reminder_at: string | null
+  deadline_date: string | null
+  is_ignored: boolean
+  ignored_until: string | null
+  view_tags: string[]
   created_at: string
   updated_at: string
 }
@@ -244,13 +255,17 @@ export interface EAFlag {
 export interface EADNA {
   id: string
   owner_id: string
+  brand_id: string | null
   layer: string
   field_id: string
   label: string
+  ea_instruction: string | null
   body: string | null
   locked: boolean
+  is_ghost: boolean
   status: string
   sort_order: number
+  tags: string[]
   created_at: string
   updated_at: string
 }

@@ -4,6 +4,9 @@ import { addExpense } from './actions'
 
 type Brand = { id: string; name: string; color: string }
 
+const CURRENCIES = ['GBP', 'USD', 'EUR', 'TRY', 'CAD', 'AUD']
+const CURRENCY_SYMBOLS: Record<string, string> = { GBP: '£', USD: '$', EUR: '€', TRY: '₺', CAD: 'C$', AUD: 'A$' }
+
 export function AddExpenseButton({ brands }: { brands: Brand[] }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -11,6 +14,7 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
     amount: '',
     merchant: '',
     frequency: 'one_time',
+    currency: 'GBP',
     description: '',
     date: new Date().toISOString().split('T')[0],
     brand_ids: [] as string[],
@@ -33,16 +37,19 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
         amount: parseFloat(form.amount),
         merchant: form.merchant,
         frequency: form.frequency,
+        currency: form.currency,
         description: form.description,
         date: form.date,
         brand_ids: form.brand_ids,
       })
       setOpen(false)
-      setForm({ amount: '', merchant: '', frequency: 'one_time', description: '', date: new Date().toISOString().split('T')[0], brand_ids: [] })
+      setForm({ amount: '', merchant: '', frequency: 'one_time', currency: 'GBP', description: '', date: new Date().toISOString().split('T')[0], brand_ids: [] })
     } finally {
       setSaving(false)
     }
   }
+
+  const sym = CURRENCY_SYMBOLS[form.currency] || form.currency
 
   return (
     <>
@@ -56,15 +63,22 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
 
       {open && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--surface)', borderRadius: '16px', padding: '28px', width: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: '16px', padding: '28px', width: '500px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '20px' }}>Add expense</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            {/* Amount + Currency + Date */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: '10px', marginBottom: '12px' }}>
               <div>
-                <label style={labelStyle}>Amount (£)</label>
+                <label style={labelStyle}>Amount ({sym})</label>
                 <input type="number" step="0.01" placeholder="0.00" value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                   style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Currency</label>
+                <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} style={inputStyle}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Date</label>
@@ -74,6 +88,7 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
               </div>
             </div>
 
+            {/* Merchant */}
             <div style={{ marginBottom: '12px' }}>
               <label style={labelStyle}>Where spent (merchant)</label>
               <input placeholder="e.g. AWS, Figma, Office supplies" value={form.merchant}
@@ -81,22 +96,28 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
                 style={inputStyle} />
             </div>
 
+            {/* Frequency */}
             <div style={{ marginBottom: '12px' }}>
               <label style={labelStyle}>Frequency</label>
               <div style={{ display: 'flex', gap: '8px' }}>
-                {['one_time', 'monthly', 'yearly'].map(freq => (
-                  <button key={freq} onClick={() => setForm(f => ({ ...f, frequency: freq }))} style={{
-                    padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                {[
+                  { key: 'one_time', label: 'One time' },
+                  { key: 'monthly', label: 'Monthly' },
+                  { key: 'yearly', label: 'Yearly' },
+                ].map(f => (
+                  <button key={f.key} onClick={() => setForm(fm => ({ ...fm, frequency: f.key }))} style={{
+                    flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
                     border: '1px solid var(--border)', cursor: 'pointer',
-                    background: form.frequency === freq ? 'var(--accent)' : 'transparent',
-                    color: form.frequency === freq ? '#fff' : 'var(--muted)',
+                    background: form.frequency === f.key ? 'var(--accent)' : 'transparent',
+                    color: form.frequency === f.key ? '#fff' : 'var(--muted)',
                   }}>
-                    {freq === 'one_time' ? 'One time' : freq.charAt(0).toUpperCase() + freq.slice(1)}
+                    {f.label}
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Description */}
             <div style={{ marginBottom: '12px' }}>
               <label style={labelStyle}>Description (optional)</label>
               <textarea placeholder="What was this for?" value={form.description}
@@ -104,22 +125,25 @@ export function AddExpenseButton({ brands }: { brands: Brand[] }) {
                 rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={labelStyle}>Brands (which brands use this?)</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {brands.map(b => (
-                  <button key={b.id} onClick={() => toggleBrand(b.id)} style={{
-                    padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
-                    border: `1px solid ${form.brand_ids.includes(b.id) ? b.color : 'var(--border)'}`,
-                    background: form.brand_ids.includes(b.id) ? b.color + '22' : 'transparent',
-                    color: form.brand_ids.includes(b.id) ? b.color : 'var(--muted)',
-                    cursor: 'pointer',
-                  }}>
-                    {b.name}
-                  </button>
-                ))}
+            {/* Brands */}
+            {brands.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>Brands (which brands use this?)</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {brands.map(b => (
+                    <button key={b.id} onClick={() => toggleBrand(b.id)} style={{
+                      padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
+                      border: `1px solid ${form.brand_ids.includes(b.id) ? b.color : 'var(--border)'}`,
+                      background: form.brand_ids.includes(b.id) ? b.color + '22' : 'transparent',
+                      color: form.brand_ids.includes(b.id) ? b.color : 'var(--muted)',
+                      cursor: 'pointer',
+                    }}>
+                      {b.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setOpen(false)} style={{

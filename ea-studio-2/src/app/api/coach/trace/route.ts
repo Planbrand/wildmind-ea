@@ -1,6 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export interface TraceField {
+  field_id: string
+  label: string
+  ea_instruction: string | null
+  body: string | null
+  was_ghost: boolean
+  was_applied: boolean
+}
+
+export interface TraceResponse {
+  content: string
+  trace: TraceField[]
+}
+
 export async function POST(request: Request) {
   const { content, view_context } = await request.json()
   if (!content?.trim()) return NextResponse.json({ error: 'No content' }, { status: 400 })
@@ -10,19 +24,45 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any  // untyped for prompt-building queries
+  const db = supabase as any
 
-  // Load EA context
-  const dnaQuery = db.from('ea_dna').select('*').eq('owner_id', user.id).eq('status', 'active').eq('is_ghost', false).order('layer').order('sort_order')
-
-  const [{ data: profile }, { data: dnaFields }, { data: flags }, { data: rules }] = await Promise.all([
+  // Load all DNA fields (including ghosts, so we can show them as skipped)
+  const [{ data: profile }, { data: allDnaFields }, { data: flags }, { data: rules }] = await Promise.all([
     db.from('user_profile').select('*').eq('user_id', user.id).maybeSingle(),
-    dnaQuery,
+    db.from('ea_dna').select('*').eq('owner_id', user.id).eq('status', 'active').order('layer').order('sort_order'),
     db.from('ea_flags').select('*').eq('owner_id', user.id).eq('is_active', true),
     db.from('ea_rules').select('*').eq('owner_id', user.id).eq('is_active', true).order('priority'),
   ])
 
-  // Build system prompt from EA context
+  // Separate active vs ghost fields
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeDnaFields = (allDnaFields || []).filter((f: any) => !f.is_ghost)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ghostDnaFields = (allDnaFields || []).filter((f: any) => f.is_ghost)
+
+  // Build trace record
+  const trace: TraceField[] = [
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...activeDnaFields.map((f: any) => ({
+      field_id: f.field_id,
+      label: f.label,
+      ea_instruction: f.ea_instruction || null,
+      body: f.body || null,
+      was_ghost: false,
+      was_applied: true,
+    })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...ghostDnaFields.map((f: any) => ({
+      field_id: f.field_id,
+      label: f.label,
+      ea_instruction: f.ea_instruction || null,
+      body: f.body || null,
+      was_ghost: true,
+      was_applied: false,
+    })),
+  ]
+
+  // Build system prompt (same logic as /api/coach)
   const profileSection = profile ? `
 ## User Profile
 Name: ${profile.display_name || 'Unknown'}
@@ -36,10 +76,9 @@ Growth edge: ${profile.growth_edge || 'Not set'}
 Biggest constraint: ${profile.biggest_constraint || 'Not set'}
 ` : ''
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dnaSection = dnaFields && dnaFields.length > 0 ? `
+  const dnaSection = activeDnaFields.length > 0 ? `
 ## DNA Fields
-${dnaFields.map((f: any) => {
+${activeDnaFields.map((f: any) => {
     const instruction = f.ea_instruction ? `\nEA reads this as: ${f.ea_instruction}` : ''
     return `### ${f.field_id}: ${f.label}${instruction}\n${f.body || 'Not set'}`
   }).join('\n\n')}
@@ -58,10 +97,10 @@ ${rules.map((r: any) => `- [${r.category}] ${r.rule}`).join('\n')}
 ` : ''
 
   const viewSection = view_context
-    ? `\n## Current View Context\nView: ${view_context.view_name}${view_context.is_studio ? ' (Studio — full access, no filters)' : ' (Scoped view — respond only in the context of this view)'}\n`
+    ? `\n## Current View Context\nView: ${view_context.view_name}${view_context.is_studio ? ' (Studio — full access)' : ' (Scoped view)'}\n`
     : ''
 
-  const systemPrompt = `You are Wildmind EA — a personal executive assistant and life coach. Your mission is helping the user achieve the best version of themselves. You learn their habits, routines, patterns, and keep notes about everything in their life. You act accordingly.
+  const systemPrompt = `You are Wildmind EA — a personal executive assistant and life coach. Your mission is helping the user achieve the best version of themselves.
 
 You are direct, focused, and honest. You push back when needed. You don't flatter. You hold the user accountable to their declared goals.
 
@@ -75,7 +114,6 @@ When responding:
 4. If you spot a red flag pattern emerging, name it
 5. Keep responses concise unless depth is needed`
 
-  // Call Anthropic
   const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -93,18 +131,17 @@ When responding:
 
   if (!anthropicRes.ok) {
     const err = await anthropicRes.text()
-    console.error('Anthropic error:', err)
+    console.error('Anthropic trace error:', err)
     return NextResponse.json({ error: 'AI error' }, { status: 500 })
   }
 
   const ai = await anthropicRes.json()
   const reply = ai.content?.[0]?.text || 'No response'
 
-  // Save both messages to DB
   await db.from('ai_messages').insert([
     { owner_id: user.id, role: 'user', content },
     { owner_id: user.id, role: 'assistant', content: reply },
   ])
 
-  return NextResponse.json({ content: reply })
+  return NextResponse.json({ content: reply, trace } satisfies TraceResponse)
 }

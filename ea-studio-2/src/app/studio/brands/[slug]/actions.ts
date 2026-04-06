@@ -19,6 +19,7 @@ export async function addDnaField(brandId: string, ownerId: string, layer: strin
     label,
     body,
     locked: false,
+    is_ghost: false,
     status: 'active',
     sort_order: 99,
   })
@@ -37,17 +38,34 @@ export async function updateBrand(id: string, fields: Record<string, string | nu
   revalidatePath(`/studio/brands/${slug}`)
 }
 
-export async function addAgendaEntry(brandId: string, ownerId: string, title: string, body: string, slug: string) {
+export async function addAgendaEntry(data: {
+  brandId: string
+  ownerId: string
+  title: string
+  body: string
+  entry_type: string
+  life_area: string
+  deadline_date: string
+  reminder_at: string
+  priority: number
+  slug: string
+}) {
   const supabase = await createClient()
   await supabase.from('ea_agenda').insert({
-    owner_id: ownerId,
-    brand_id: brandId,
-    title,
-    body,
-    entry_type: 'note',
-    priority: 3,
-    is_pinned: false,
+    owner_id: data.ownerId,
+    brand_id: data.brandId,
+    title: data.title,
+    body: data.body || null,
+    priority: data.priority || 2,
+    deadline_date: data.deadline_date || null,
+    reminder_at: data.reminder_at || null,
   })
+  revalidatePath(`/studio/brands/${data.slug}`)
+}
+
+export async function deleteAgendaEntry(id: string, slug: string) {
+  const supabase = await createClient()
+  await supabase.from('ea_agenda').delete().eq('id', id)
   revalidatePath(`/studio/brands/${slug}`)
 }
 
@@ -64,16 +82,37 @@ export async function addContact(brandId: string, ownerId: string, name: string,
   revalidatePath(`/studio/brands/${slug}`)
 }
 
-export async function addGoal(brandId: string, ownerId: string, title: string, description: string, targetDate: string, slug: string) {
+export async function addGoal(data: {
+  brandId: string
+  ownerId: string
+  title: string
+  description: string
+  target_date: string
+  priority: number
+  financial_target_pence: number | null
+  related_brand_ids: string[]
+  people_to_reach: string[]
+  slug: string
+}) {
   const supabase = await createClient()
   await supabase.from('goals').insert({
-    owner_id: ownerId,
-    brand_id: brandId,
-    title,
-    description,
-    target_date: targetDate || null,
+    owner_id: data.ownerId,
+    brand_id: data.brandId,
+    title: data.title,
+    description: data.description || null,
+    target_date: data.target_date || null,
+    priority: data.priority,
+    financial_target_pence: data.financial_target_pence,
+    related_brand_ids: data.related_brand_ids,
+    people_to_reach: data.people_to_reach,
     status: 'active',
     progress_pct: 0,
   })
+  revalidatePath(`/studio/brands/${data.slug}`)
+}
+
+export async function deleteGoal(id: string, slug: string) {
+  const supabase = await createClient()
+  await supabase.from('goals').delete().eq('id', id)
   revalidatePath(`/studio/brands/${slug}`)
 }

@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import PanelHeader from '@/components/ui/PanelHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import { DnaEditor } from './DnaEditor'
+import { AgendaTab } from './AgendaTab'
+import { GoalsTab } from './GoalsTab'
 
 function pence(n: number) {
   const p = Math.round(n / 100)
@@ -37,32 +38,26 @@ export default async function BrandPage({ params, searchParams }: {
     { data: agenda },
     { data: contacts },
     { data: goals },
+    { data: allBrands },
   ] = await Promise.all([
     supabase.from('ea_dna').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('layer').order('sort_order'),
-    supabase.from('ea_agenda').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('priority').limit(20),
-    supabase.from('contacts').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('stage').limit(30),
-    supabase.from('goals').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).eq('status', 'active').limit(5),
+    supabase.from('ea_agenda').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('priority').order('created_at', { ascending: false }),
+    supabase.from('contacts').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).order('stage').limit(50),
+    supabase.from('goals').select('*').eq('owner_id', user.id).eq('brand_id', brand.id).eq('status', 'active').order('priority'),
+    supabase.from('brands').select('id, name, color').eq('owner_id', user.id).eq('is_active', true),
   ])
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'dna', label: 'DNA Fields' },
-    { key: 'agenda', label: 'EA Agenda' },
-    { key: 'contacts', label: 'Contacts' },
-    { key: 'goals', label: 'Goals' },
+    { key: 'agenda', label: `EA Agenda${agenda?.length ? ` (${agenda.length})` : ''}` },
+    { key: 'contacts', label: `Contacts${contacts?.length ? ` (${contacts.length})` : ''}` },
+    { key: 'goals', label: `Goals${goals?.length ? ` (${goals.length})` : ''}` },
   ]
 
-  const card = (children: React.ReactNode) => (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
-      {children}
-    </div>
-  )
-
-  const label = (t: string) => (
-    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', marginBottom: '12px' }}>{t}</div>
-  )
-
   const stageColor = (s: string) => ({ hot: '#DC2626', warm: '#B45309', cold: '#6B6B7A', client: '#059669' })[s] || '#6B6B7A'
+
+  const topGoal = goals?.[0]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -72,6 +67,11 @@ export default async function BrandPage({ params, searchParams }: {
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: brand.color, flexShrink: 0 }} />
           <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>{brand.name}</div>
           {brand.description && <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{brand.description}</div>}
+          {topGoal && (
+            <div style={{ fontSize: '11px', color: '#f59e0b', background: 'rgba(245,158,11,.1)', padding: '3px 10px', borderRadius: '20px', fontWeight: 600 }}>
+              ⭐ {topGoal.title}
+            </div>
+          )}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
             <div style={{ fontSize: '12px', color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '4px 10px' }}>
               MRR: <strong style={{ color: 'var(--text)' }}>{brand.mrr_pence ? pence(brand.mrr_pence) : '—'}</strong>
@@ -81,7 +81,6 @@ export default async function BrandPage({ params, searchParams }: {
             </div>
           </div>
         </div>
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: '4px' }}>
           {tabs.map(t => (
             <Link key={t.key} href={`/studio/brands/${slug}?tab=${t.key}`} style={{
@@ -89,6 +88,7 @@ export default async function BrandPage({ params, searchParams }: {
               color: tab === t.key ? 'var(--text)' : 'var(--muted)',
               background: tab === t.key ? 'var(--bg)' : 'transparent',
               border: tab === t.key ? '1px solid var(--border)' : '1px solid transparent',
+              textDecoration: 'none',
             }}>{t.label}</Link>
           ))}
         </div>
@@ -100,26 +100,25 @@ export default async function BrandPage({ params, searchParams }: {
         {/* ── OVERVIEW ── */}
         {tab === 'overview' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {card(<>
-              {label('About this brand')}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[
-                  ['Slug', brand.slug],
-                  ['Main inbox', brand.main_inbox || '—'],
-                  ['Website', brand.website || '—'],
-                  ['Daily capacity', brand.daily_capacity + ' emails'],
-                  ['Inbox count', brand.inbox_count + ' inboxes'],
-                ].map(([k, v]) => (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--muted)' }}>{k}</span>
-                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </>)}
-            {card(<>
-              {label('Active goals')}
-              {goals && goals.length > 0 ? goals.map(g => (
+            {/* About */}
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+              <div style={sectionLabel}>About</div>
+              {[
+                ['Slug', brand.slug],
+                ['Main inbox', brand.main_inbox || '—'],
+                ['Website', brand.website || '—'],
+                ['Daily capacity', brand.daily_capacity + ' emails'],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--muted)' }}>{k}</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 500 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            {/* Top goal */}
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+              <div style={sectionLabel}>North Star goal</div>
+              {goals && goals.length > 0 ? goals.slice(0, 3).map(g => (
                 <div key={g.id} style={{ marginBottom: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px' }}>
                     <span style={{ fontWeight: 600 }}>{g.title}</span>
@@ -129,10 +128,11 @@ export default async function BrandPage({ params, searchParams }: {
                     <div style={{ height: '100%', width: `${g.progress_pct}%`, background: 'var(--accent)', borderRadius: '2px' }} />
                   </div>
                 </div>
-              )) : <EmptyState label="No active goals" hint="Goals linked to this brand appear here" />}
-            </>)}
-            {card(<>
-              {label('Top contacts')}
+              )) : <EmptyState label="No active goals" hint="Goals drive EA's behaviour for this brand" />}
+            </div>
+            {/* Contacts preview */}
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+              <div style={sectionLabel}>Top contacts</div>
               {contacts && contacts.slice(0, 5).length > 0 ? contacts.slice(0, 5).map(c => {
                 const initials = c.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
                 return (
@@ -146,52 +146,30 @@ export default async function BrandPage({ params, searchParams }: {
                   </div>
                 )
               }) : <EmptyState label="No contacts" hint="Contacts linked to this brand appear here" />}
-            </>)}
-            {card(<>
-              {label('EA Agenda — pinned')}
-              {agenda && agenda.filter(a => a.is_pinned).slice(0, 4).length > 0
-                ? agenda.filter(a => a.is_pinned).slice(0, 4).map(a => (
+            </div>
+            {/* EA Agenda preview */}
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+              <div style={sectionLabel}>EA agenda — latest</div>
+              {agenda && agenda.slice(0, 4).length > 0
+                ? agenda.slice(0, 4).map(a => (
                   <div key={a.id} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '12px' }}>
                     <div style={{ fontWeight: 600 }}>{a.title}</div>
-                    {a.body && <div style={{ color: 'var(--muted)', fontSize: '11px', marginTop: '2px' }}>{a.body.slice(0, 100)}</div>}
+                    {a.deadline_date && <div style={{ fontSize: '10px', color: 'var(--warn)', marginTop: '2px' }}>⏰ {a.deadline_date}</div>}
                   </div>
                 ))
-                : <EmptyState label="No pinned notes" hint="EA will add observations for this brand here" />}
-            </>)}
+                : <EmptyState label="No agenda entries" hint="EA will add notes and observations here" />}
+            </div>
           </div>
         )}
 
         {/* ── DNA FIELDS ── */}
         {tab === 'dna' && (
-          <DnaEditor
-            fields={dnaFields || []}
-            brandId={brand.id}
-            ownerId={user.id}
-            slug={slug}
-          />
+          <DnaEditor fields={dnaFields || []} brandId={brand.id} ownerId={user.id} slug={slug} />
         )}
 
         {/* ── AGENDA ── */}
         {tab === 'agenda' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: 700 }}>
-            {agenda && agenda.length > 0 ? agenda.map(a => (
-              <div key={a.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  {a.is_pinned && <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 700, flexShrink: 0, marginTop: '2px' }}>📌</span>}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>{a.title}</div>
-                    {a.body && <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>{a.body}</div>}
-                    <div style={{ fontSize: '10px', color: 'var(--dim)', marginTop: '8px', textTransform: 'uppercase', letterSpacing: '.04em' }}>{a.entry_type} · {a.life_area || 'general'}</div>
-                  </div>
-                </div>
-              </div>
-            )) : (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '6px' }}>No EA agenda entries for {brand.name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>EA will add observations, notes, and insights for this brand as you use it.</div>
-              </div>
-            )}
-          </div>
+          <AgendaTab entries={agenda || []} brandId={brand.id} ownerId={user.id} slug={slug} />
         )}
 
         {/* ── CONTACTS ── */}
@@ -222,7 +200,7 @@ export default async function BrandPage({ params, searchParams }: {
               </table>
             ) : (
               <div style={{ padding: '40px', textAlign: 'center' }}>
-                <EmptyState label={`No contacts for ${brand.name}`} hint="Contacts linked to this brand will appear here" />
+                <EmptyState label={`No contacts for ${brand.name}`} hint="Contacts linked to this brand appear here" />
               </div>
             )}
           </div>
@@ -230,28 +208,21 @@ export default async function BrandPage({ params, searchParams }: {
 
         {/* ── GOALS ── */}
         {tab === 'goals' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: 700 }}>
-            {goals && goals.length > 0 ? goals.map(g => (
-              <div key={g.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>{g.title}</div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>{g.progress_pct}%</span>
-                </div>
-                <div style={{ height: '6px', background: 'var(--border-mid)', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px' }}>
-                  <div style={{ height: '100%', width: `${g.progress_pct}%`, background: 'var(--accent)', borderRadius: '3px' }} />
-                </div>
-                {g.description && <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>{g.description}</div>}
-                {g.target_date && <div style={{ fontSize: '11px', color: 'var(--dim)' }}>Target: {g.target_date}</div>}
-              </div>
-            )) : (
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-                <EmptyState label={`No active goals for ${brand.name}`} hint="Goals linked to this brand will appear here" />
-              </div>
-            )}
-          </div>
+          <GoalsTab
+            goals={goals || []}
+            brandId={brand.id}
+            ownerId={user.id}
+            slug={slug}
+            allBrands={(allBrands || []).map(b => ({ id: b.id, name: b.name, color: b.color }))}
+          />
         )}
 
       </div>
     </div>
   )
+}
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: '10px', fontWeight: 700, letterSpacing: '.08em',
+  textTransform: 'uppercase', color: 'var(--dim)', marginBottom: '12px',
 }

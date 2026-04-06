@@ -112,6 +112,7 @@ export async function addExpense(data: {
   amount: number
   merchant: string
   frequency: string
+  currency: string
   description: string
   date: string
   brand_ids: string[]
@@ -126,6 +127,7 @@ export async function addExpense(data: {
     amount_pence: Math.round(data.amount * 100),
     merchant: data.merchant,
     frequency: data.frequency,
+    currency: data.currency,
     description: data.description,
     date: data.date,
     brand_ids: data.brand_ids,

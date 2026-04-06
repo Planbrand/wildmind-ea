@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { RecategoriseButton } from './RecategoriseButton'
 
 type Brand = { id: string; name: string; color: string; slug: string }
 type Thread = {
@@ -127,7 +128,8 @@ export default async function InboxPage({
             </Link>
           )
         })}
-        <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--dim)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--dim)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <RecategoriseButton />
           {count} thread{count !== 1 ? 's' : ''}
         </span>
       </div>
