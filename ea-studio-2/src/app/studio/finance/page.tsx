@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { DateFilter } from './DateFilter'
 import { AddExpenseButton } from './AddExpenseButton'
 import { deleteExpense } from './actions'
 
@@ -44,7 +43,7 @@ export default async function FinancesPage({
 
   let txInQ = supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'in').gte('date', from).lte('date', to).order('date', { ascending: false })
   let txOutQ = supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'out').gte('date', from).lte('date', to).order('date', { ascending: false })
-  let expQ = supabase.from('expenses').select('*').eq('owner_id', user.id).gte('date', from).lte('date', to).order('date', { ascending: false })
+  let expQ = supabase.from('expenses').select('*').eq('owner_id', user.id).order('date', { ascending: false })
 
   if (viewName) {
     txInQ = txInQ.contains('view_tags', [viewName])
@@ -89,7 +88,7 @@ export default async function FinancesPage({
           ].map(t => {
             const vq = viewName ? `&view=${encodeURIComponent(viewName)}` : ''
             return (
-              <Link key={t.key} href={`/studio/finance?tab=${t.key}&range=${range}${vq}`} style={{
+              <Link key={t.key} href={`/studio/finance?tab=${t.key}${vq}`} style={{
                 padding: '6px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: tab === t.key ? 700 : 400,
                 background: tab === t.key ? 'var(--accent)' : 'transparent',
                 color: tab === t.key ? '#fff' : 'var(--muted)',
@@ -101,7 +100,6 @@ export default async function FinancesPage({
           })}
         </div>
 
-        <DateFilter active={range} tab={tab} viewName={viewName} />
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
