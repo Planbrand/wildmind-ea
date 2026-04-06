@@ -14,9 +14,10 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; do
 export default async function CampaignsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string; status?: string }>
+  searchParams: Promise<{ brand?: string; status?: string; view?: string }>
 }) {
   const sp = await searchParams
+  const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -30,7 +31,9 @@ export default async function CampaignsPage({
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (sp.brand && brands) {
+  if (viewName) {
+    query = query.contains('view_tags', [viewName])
+  } else if (sp.brand && brands) {
     const b = brands.find(b => b.slug === sp.brand)
     if (b) query = query.eq('brand_id', b.id)
   }

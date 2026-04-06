@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 type Goal = {
@@ -117,7 +118,7 @@ function GoalCard({ goal, children, onSelect, selected }: {
   )
 }
 
-function AddGoalForm({ onSave, onCancel, parentId }: { onSave: () => void; onCancel: () => void; parentId?: string }) {
+function AddGoalForm({ onSave, onCancel, parentId, viewName }: { onSave: () => void; onCancel: () => void; parentId?: string; viewName?: string | null }) {
   const supabase = createClient()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -142,6 +143,7 @@ function AddGoalForm({ onSave, onCancel, parentId }: { onSave: () => void; onCan
       status: 'active',
       progress_pct: 0,
       goal_type: 'business',
+      view_tags: viewName ? [viewName] : [],
     })
     setSaving(false)
     onSave()
@@ -198,6 +200,9 @@ function AddGoalForm({ onSave, onCancel, parentId }: { onSave: () => void; onCan
 
 export default function GoalsPage() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const rawView = searchParams.get('view')
+  const viewName = rawView ? decodeURIComponent(rawView) : null
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -207,12 +212,14 @@ export default function GoalsPage() {
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('goals').select('*').eq('owner_id', user.id).order('priority').order('created_at')
+    let q = supabase.from('goals').select('*').eq('owner_id', user.id).order('priority').order('created_at')
+    if (viewName) q = q.contains('view_tags', [viewName])
+    const { data } = await q
     setGoals((data as Goal[]) || [])
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [viewName])
 
   const filtered = goals.filter(g => filter === 'all' ? true : g.status === filter)
   const roots = filtered.filter(g => !g.parent_goal_id)
@@ -276,6 +283,7 @@ export default function GoalsPage() {
           <AddGoalForm
             onSave={() => { setShowForm(false); load() }}
             onCancel={() => setShowForm(false)}
+            viewName={viewName}
           />
         )}
 

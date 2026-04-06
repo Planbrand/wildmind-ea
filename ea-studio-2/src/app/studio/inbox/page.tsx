@@ -40,9 +40,10 @@ const CAT_COLORS: Record<string, { bg: string; text: string }> = {
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string; category?: string }>
+  searchParams: Promise<{ brand?: string; category?: string; view?: string }>
 }) {
   const sp = await searchParams
+  const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
 
   const { data: brands } = await supabase
@@ -57,7 +58,9 @@ export default async function InboxPage({
     .order('received_at', { ascending: false })
     .limit(200)
 
-  if (sp.brand && brands) {
+  if (viewName) {
+    query = query.contains('view_tags', [viewName])
+  } else if (sp.brand && brands) {
     const brand = brands.find((b: Brand) => b.slug === sp.brand)
     if (brand) query = query.eq('brand_id', brand.id)
   }

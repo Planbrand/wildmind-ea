@@ -10,10 +10,25 @@ function pence(n: number) {
   return '£' + p.toLocaleString()
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
+  const sp = await searchParams
+  const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  let tasksQ = supabase.from('tasks').select('*').eq('owner_id', user.id).eq('is_done', false).order('sort_order').limit(6)
+  let goalsQ = supabase.from('goals').select('*').eq('owner_id', user.id).eq('status', 'active').order('created_at').limit(3)
+  let contactsQ = supabase.from('contacts').select('*').eq('owner_id', user.id).in('stage', ['hot', 'warm']).order('last_contact_date', { ascending: false }).limit(5)
+  if (viewName) {
+    tasksQ = tasksQ.contains('view_tags', [viewName])
+    goalsQ = goalsQ.contains('view_tags', [viewName])
+    contactsQ = contactsQ.contains('view_tags', [viewName])
+  }
 
   const [
     { data: brands },
@@ -25,9 +40,9 @@ export default async function DashboardPage() {
     { data: agenda },
   ] = await Promise.all([
     supabase.from('brands').select('*').eq('owner_id', user.id).eq('is_active', true).order('sort_order'),
-    supabase.from('tasks').select('*').eq('owner_id', user.id).eq('is_done', false).order('sort_order').limit(6),
-    supabase.from('goals').select('*').eq('owner_id', user.id).eq('status', 'active').order('created_at').limit(3),
-    supabase.from('contacts').select('*').eq('owner_id', user.id).in('stage', ['hot', 'warm']).order('last_contact_date', { ascending: false }).limit(5),
+    tasksQ,
+    goalsQ,
+    contactsQ,
     supabase.from('user_profile').select('*').eq('user_id', user.id).single(),
     supabase.from('ea_flags').select('*').eq('owner_id', user.id).eq('is_active', true).order('created_at', { ascending: false }).limit(3),
     supabase.from('ea_agenda').select('*').eq('owner_id', user.id).eq('is_pinned', true).order('priority').limit(4),
@@ -56,7 +71,7 @@ export default async function DashboardPage() {
     <div style={{ display:'flex', flexDirection:'column', flex:1, overflow:'hidden' }}>
       <PanelHeader
         title={`Good morning${profile?.display_name ? `, ${profile.display_name}` : ''} ·`}
-        subtitle={new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+        subtitle={viewName ? `Overview · ${viewName}` : new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
       />
       <div style={{ flex:1, overflowY:'auto', padding:'14px' }}>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(12, 1fr)', gap:'10px', alignContent:'start' }}>

@@ -12,7 +12,7 @@ const STAGES = [
   { key: 'won',           label: 'Won' },
 ]
 
-export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: string }) {
+export function AddDealButton({ brands, ownerId, viewName }: { brands: Brand[]; ownerId: string; viewName?: string | null }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -52,6 +52,7 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
       call_date: form.call_date || null,
       notes: form.notes || null,
       contact_id: contact?.id || null,
+      view_tags: viewName ? [viewName] : [],
     })
 
     if (dealErr) {

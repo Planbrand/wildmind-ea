@@ -163,3 +163,15 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS view_tags TEXT[]  NOT NULL DEFAULT
 
 -- tasks: add view_tags
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS view_tags TEXT[] NOT NULL DEFAULT '{}';
+
+-- pipeline_deals: add view_tags
+ALTER TABLE pipeline_deals ADD COLUMN IF NOT EXISTS view_tags TEXT[] NOT NULL DEFAULT '{}';
+
+-- expenses: add view_tags
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS view_tags TEXT[] NOT NULL DEFAULT '{}';
+
+-- campaigns: add view_tags
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS view_tags TEXT[] NOT NULL DEFAULT '{}';
+
+-- finance_transactions: add view_tags
+ALTER TABLE finance_transactions ADD COLUMN IF NOT EXISTS view_tags TEXT[] NOT NULL DEFAULT '{}';

@@ -30,17 +30,28 @@ const FREQ_LABEL: Record<string, string> = { one_time: 'One time', monthly: 'Mon
 export default async function FinancesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string; tab?: string }>
+  searchParams: Promise<{ range?: string; tab?: string; view?: string }>
 }) {
   const sp = await searchParams
   const range = sp.range || 'this_month'
   const tab = sp.tab || 'overview'
+  const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const { from, to } = getDateRange(range)
   const today = new Date().toISOString().split('T')[0]
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  let txInQ = supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'in').gte('date', from).lte('date', to).order('date', { ascending: false })
+  let txOutQ = supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'out').gte('date', from).lte('date', to).order('date', { ascending: false })
+  let expQ = supabase.from('expenses').select('*').eq('owner_id', user.id).gte('date', from).lte('date', to).order('date', { ascending: false })
+
+  if (viewName) {
+    txInQ = txInQ.contains('view_tags', [viewName])
+    txOutQ = txOutQ.contains('view_tags', [viewName])
+    expQ = expQ.contains('view_tags', [viewName])
+  }
 
   const [
     { data: brands },
@@ -50,10 +61,10 @@ export default async function FinancesPage({
     { data: expenses },
   ] = await Promise.all([
     supabase.from('brands').select('id,name,color,slug,mrr_pence').eq('owner_id', user.id).order('sort_order'),
-    supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'in').gte('date', from).lte('date', to).order('date', { ascending: false }),
-    supabase.from('finance_transactions').select('*').eq('owner_id', user.id).eq('direction', 'out').gte('date', from).lte('date', to).order('date', { ascending: false }),
+    txInQ,
+    txOutQ,
     supabase.from('bank_connections').select('account_name,last_synced').eq('owner_id', user.id).maybeSingle(),
-    supabase.from('expenses').select('*').eq('owner_id', user.id).gte('date', from).lte('date', to).order('date', { ascending: false }),
+    expQ,
   ])
 
   const totalMrr = (brands || []).reduce((s, b) => s + (b.mrr_pence || 0), 0)

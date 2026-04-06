@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 type Task = {
@@ -25,6 +26,9 @@ type CardModal = { task: Task; editing: boolean; draftText: string; draftNotes: 
 
 export default function TasksPage() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const rawView = searchParams.get('view')
+  const viewName = rawView ? decodeURIComponent(rawView) : null
   const [tasks, setTasks]       = useState<Task[]>([])
   const [userId, setUserId]     = useState<string | null>(null)
   const [addingTo, setAddingTo] = useState<Task['column_key'] | null>(null)
@@ -35,11 +39,12 @@ export default function TasksPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      supabase.from('tasks').select('*').eq('owner_id', user.id).order('sort_order')
-        .then(({ data }) => setTasks((data as Task[]) || []))
+      let q = supabase.from('tasks').select('*').eq('owner_id', user.id).order('sort_order')
+      if (viewName) q = q.contains('view_tags', [viewName])
+      q.then(({ data }) => setTasks((data as Task[]) || []))
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [viewName])
 
   async function addTask(col: Task['column_key']) {
     const text = draftText.trim()
@@ -48,7 +53,7 @@ export default function TasksPage() {
     setTasks(prev => [...prev, optimistic])
     setDraftText('')
     setAddingTo(null)
-    const { data } = await supabase.from('tasks').insert({ text, column_key: col, is_done: false, sort_order: 9999, owner_id: userId }).select().single()
+    const { data } = await supabase.from('tasks').insert({ text, column_key: col, is_done: false, sort_order: 9999, owner_id: userId, view_tags: viewName ? [viewName] : [] }).select().single()
     if (data) setTasks(prev => prev.map(t => t.id === optimistic.id ? (data as Task) : t))
   }
 

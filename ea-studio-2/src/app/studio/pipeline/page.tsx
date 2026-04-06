@@ -32,9 +32,10 @@ function pence(n: number) {
 export default async function PipelinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string }>
+  searchParams: Promise<{ brand?: string; view?: string }>
 }) {
   const sp = await searchParams
+  const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -48,9 +49,8 @@ export default async function PipelinePage({
     .eq('owner_id', user.id)
     .order('updated_at', { ascending: false })
 
-  if (sp.brand && brands) {
-    const b = brands.find(b => b.slug === sp.brand)
-    if (b) query = query.eq('brand_id', b.id)
+  if (viewName) {
+    query = query.contains('view_tags', [viewName])
   }
 
   const { data: deals } = await query
@@ -81,20 +81,27 @@ export default async function PipelinePage({
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <AddDealButton brands={brands || []} ownerId={user.id} />
+            <AddDealButton brands={brands || []} ownerId={user.id} viewName={viewName} />
           </div>
         </div>
 
-        {/* Brand filter */}
-        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
-          <Link href="/studio/pipeline" style={chip(!sp.brand)}>All brands</Link>
-          {brands?.map(b => (
-            <Link key={b.id} href={`/studio/pipeline?brand=${b.slug}`} style={chip(sp.brand === b.slug)}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: b.color, display: 'inline-block' }} />
-              {b.name}
-            </Link>
-          ))}
-        </div>
+        {/* Brand filter — only shown when no view filter is active */}
+        {!viewName && (
+          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
+            <Link href="/studio/pipeline" style={chip(!sp.brand)}>All brands</Link>
+            {brands?.map(b => (
+              <Link key={b.id} href={`/studio/pipeline?brand=${b.slug}`} style={chip(sp.brand === b.slug)}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: b.color, display: 'inline-block' }} />
+                {b.name}
+              </Link>
+            ))}
+          </div>
+        )}
+        {viewName && (
+          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            Showing deals tagged <strong style={{ color: 'var(--text)' }}>{viewName}</strong>
+          </div>
+        )}
       </div>
 
       {/* Kanban board */}

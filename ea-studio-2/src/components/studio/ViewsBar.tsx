@@ -1,6 +1,5 @@
 'use client'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { createSection, createView } from '@/app/studio/sections/actions'
 
@@ -12,6 +11,8 @@ const COLORS = ['#059669', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444'
 export default function ViewsBar({ sections, views }: { sections: Section[]; views: View[] }) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeViewName = searchParams.get('view') // e.g. "brumah"
 
   const [addingView, setAddingView] = useState<string | null>(null)
   const [newViewName, setNewViewName] = useState('')
@@ -20,16 +21,30 @@ export default function ViewsBar({ sections, views }: { sections: Section[]; vie
   const [addingSectionName, setAddingSectionName] = useState('')
   const [saving, setSaving] = useState(false)
 
+  function selectView(v: View) {
+    if (v.is_studio) {
+      // Studio = clear filter, show everything
+      router.replace(pathname)
+    } else {
+      const alreadyActive = activeViewName === v.name
+      if (alreadyActive) {
+        // Clicking active view deselects it
+        router.replace(pathname)
+      } else {
+        router.replace(`${pathname}?view=${encodeURIComponent(v.name)}`)
+      }
+    }
+  }
+
   async function handleAddView() {
     if (!newViewName.trim() || !addingView) return
     setSaving(true)
     try {
-      const v = await createView(addingView, newViewName, newViewColor, '')
+      await createView(addingView, newViewName, newViewColor, '')
       setNewViewName('')
       setNewViewColor('#059669')
       setAddingView(null)
-      if (v?.slug) router.push(`/studio/views/${v.slug}`)
-      else router.refresh()
+      router.refresh()
     } finally {
       setSaving(false)
     }
@@ -71,25 +86,25 @@ export default function ViewsBar({ sections, views }: { sections: Section[]; vie
             <span style={labelStyle}>{sec.icon && `${sec.icon} `}{sec.name}</span>
 
             {secViews.map(v => {
-              const isActive = pathname === `/studio/views/${v.slug}`
+              const isActive = v.is_studio ? !activeViewName : activeViewName === v.name
               return (
-                <Link
+                <button
                   key={v.id}
-                  href={`/studio/views/${v.slug}`}
+                  onClick={() => selectView(v)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     padding: '3px 10px', borderRadius: 20, fontSize: 12,
-                    textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap',
+                    flexShrink: 0, whiteSpace: 'nowrap', cursor: 'pointer',
                     fontWeight: isActive ? 600 : 400,
                     background: isActive ? v.color + '22' : 'transparent',
                     color: isActive ? v.color : 'var(--muted)',
                     border: `1px solid ${isActive ? v.color + '66' : 'var(--border)'}`,
                   }}
                 >
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: v.color, flexShrink: 0 }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: isActive ? v.color : 'var(--dim)', flexShrink: 0 }} />
                   {v.name}
                   {v.is_studio && <span style={{ fontSize: 8, color: 'var(--accent)', fontWeight: 700, marginLeft: 2 }}>ALL</span>}
-                </Link>
+                </button>
               )
             })}
 
@@ -151,6 +166,20 @@ export default function ViewsBar({ sections, views }: { sections: Section[]; vie
         >
           + Section
         </button>
+      )}
+
+      {/* Active view indicator */}
+      {activeViewName && (
+        <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12 }}>
+          <span style={{ fontSize: 10, color: 'var(--dim)', fontWeight: 600 }}>Filtered:</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{activeViewName}</span>
+          <button
+            onClick={() => router.replace(pathname)}
+            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--dim)', cursor: 'pointer' }}
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   )

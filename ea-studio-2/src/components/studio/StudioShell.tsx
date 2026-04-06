@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ViewsBar from './ViewsBar'
 
@@ -38,8 +38,11 @@ export default function StudioShell({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const currentKey = pathname.split('/studio/')[1]?.split('/')[0] || 'dashboard'
+  const viewParam = searchParams.get('view')
+  const vq = viewParam ? `?view=${encodeURIComponent(viewParam)}` : ''
 
   const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
 
@@ -68,7 +71,7 @@ export default function StudioShell({
 
           {/* Dashboard */}
           <div style={{ padding: '8px 10px 0' }}>
-            <Link href="/studio/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: currentKey === 'dashboard' ? 600 : 400, color: currentKey === 'dashboard' ? 'var(--text)' : 'var(--muted)', background: currentKey === 'dashboard' ? 'var(--bg)' : 'transparent', textDecoration: 'none', marginBottom: '2px' }}>
+            <Link href={`/studio/dashboard${vq}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: currentKey === 'dashboard' ? 600 : 400, color: currentKey === 'dashboard' ? 'var(--text)' : 'var(--muted)', background: currentKey === 'dashboard' ? 'var(--bg)' : 'transparent', textDecoration: 'none', marginBottom: '2px' }}>
               <span style={{ width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: currentKey === 'dashboard' ? 1 : 0.6 }}><HomeIcon /></span>
               Home
             </Link>
@@ -84,7 +87,7 @@ export default function StudioShell({
                 {group.items.map(item => {
                   const active = currentKey === item.key
                   return (
-                    <Link key={item.key} href={`/studio/${item.key}`} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '6px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: active ? 600 : 400, color: active ? 'var(--text)' : 'var(--muted)', background: active ? 'var(--bg)' : 'transparent', textDecoration: 'none', marginBottom: '1px' }}>
+                    <Link key={item.key} href={`/studio/${item.key}${vq}`} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '6px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: active ? 600 : 400, color: active ? 'var(--text)' : 'var(--muted)', background: active ? 'var(--bg)' : 'transparent', textDecoration: 'none', marginBottom: '1px' }}>
                       <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: active ? 1 : 0.6 }}>{item.icon}</span>
                       {item.label}
                     </Link>

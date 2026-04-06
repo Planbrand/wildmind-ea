@@ -32,9 +32,10 @@ const STAGE_COLORS: Record<string, { bg: string; text: string }> = {
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ brand?: string; stage?: string; group?: string }>
+  searchParams: Promise<{ brand?: string; stage?: string; group?: string; view?: string }>
 }) {
   const sp = await searchParams
+  const viewName = sp.view ? decodeURIComponent(sp.view) : null
   const supabase = await createClient()
 
   const { data: brands } = await supabase
@@ -46,7 +47,9 @@ export default async function PeoplePage({
     .order('name')
     .limit(500)
 
-  if (sp.brand && brands) {
+  if (viewName) {
+    query = query.contains('view_tags', [viewName])
+  } else if (sp.brand && brands) {
     const brand = (brands as { id: string; slug: string }[]).find(b => b.slug === sp.brand)
     if (brand) query = query.eq('brand_id', brand.id)
   }
