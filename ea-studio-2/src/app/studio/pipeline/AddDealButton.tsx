@@ -31,8 +31,8 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
 
     const supabase = createClient()
 
-    // First: create a contact so the join works correctly
-    const { data: contact, error: contactErr } = await supabase
+    // Create contact first so the join works on the pipeline board
+    const { data: contact } = await supabase
       .from('contacts')
       .insert({
         owner_id: ownerId,
@@ -44,41 +44,20 @@ export function AddDealButton({ brands, ownerId }: { brands: Brand[]; ownerId: s
       .select('id')
       .single()
 
-    if (contactErr) {
-      console.error('contacts insert error:', contactErr)
-      // Non-fatal: continue without contact_id
-    }
-
-    // Build the deal payload — only include columns we know exist
-    const dealPayload: Record<string, unknown> = {
+    const { error: dealErr } = await supabase.from('pipeline_deals').insert({
       owner_id: ownerId,
       brand_id: form.brand_id || null,
       stage: form.stage,
       value_pence: form.value ? Math.round(parseFloat(form.value) * 100) : 0,
       call_date: form.call_date || null,
       notes: form.notes || null,
-    }
-
-    // Link contact if it was created
-    if (contact?.id) dealPayload.contact_id = contact.id
-
-    const { error: dealErr } = await supabase.from('pipeline_deals').insert(dealPayload)
+      contact_id: contact?.id || null,
+    })
 
     if (dealErr) {
-      // contact_id column might not exist — retry without it
-      if (dealErr.message?.includes('contact_id') || dealErr.code === '42703') {
-        delete dealPayload.contact_id
-        const { error: retryErr } = await supabase.from('pipeline_deals').insert(dealPayload)
-        if (retryErr) {
-          setError(retryErr.message)
-          setSaving(false)
-          return
-        }
-      } else {
-        setError(dealErr.message)
-        setSaving(false)
-        return
-      }
+      setError(dealErr.message)
+      setSaving(false)
+      return
     }
 
     setSaving(false)
