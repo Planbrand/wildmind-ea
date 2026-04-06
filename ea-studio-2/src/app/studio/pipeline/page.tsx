@@ -12,6 +12,8 @@ type Deal = {
   brands: { name: string; color: string; slug: string } | null
   contacts: { name: string; company: string | null } | null
   leads: { name: string; company: string | null; title: string | null } | null
+  person_name?: string | null
+  person_company?: string | null
 }
 
 const STAGES = [
@@ -44,7 +46,7 @@ export default async function PipelinePage({
 
   let query = supabase
     .from('pipeline_deals')
-    .select('*, brands(name,color,slug), contacts(name,company), leads(name,company,title)')
+    .select('*, brands(name,color,slug), contacts(name,company), leads(name,company,title), person_name, person_company')
     .eq('owner_id', user.id)
     .order('updated_at', { ascending: false })
 
@@ -60,10 +62,10 @@ export default async function PipelinePage({
   const wonValue = all.filter(d => d.stage === 'won').reduce((s, d) => s + (d.value_pence || 0), 0)
 
   function dealName(d: Deal) {
-    return d.contacts?.name || d.leads?.name || 'Unknown'
+    return d.contacts?.name || d.leads?.name || d.person_name || 'Unknown'
   }
   function dealCompany(d: Deal) {
-    return d.contacts?.company || d.leads?.company || null
+    return d.contacts?.company || d.leads?.company || d.person_company || null
   }
 
   return (
